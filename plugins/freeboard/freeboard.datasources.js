@@ -29,7 +29,7 @@
 
 		updateRefresh(currentSettings.refresh * 1000);
 
-		this.send = function(value) {
+		this.send = function(datasource, value) {
 			var requestURL = currentSettings.url;
 
 			if (errorStage == 2 && currentSettings.use_thingproxy) {
