@@ -22,6 +22,7 @@
   "dependencies": {
     "moment": "^2.12.0",
     "cryptojslib": "^3.1.2",
-    "paho-mqtt-js": "^1.0.1"
+    "paho-mqtt-js": "^1.0.1",
+    "random": "^1.0.8"
   }
 }

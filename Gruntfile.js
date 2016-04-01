@@ -53,7 +53,17 @@ module.exports = function(grunt) {
                     'js/freeboard.plugins.js'
                 ],
                 dest : 'js/freeboard_plugins.js'
-            }
+            },
+            'bower_components' : {
+                src : [
+                    'bower_components/cryptojslib/rollups/sha256.js',
+                    'bower_components/cryptojslib/rollups/hmac-sha256.js',
+                    'bower_components/moment/min/moment.min.js',
+                    'bower_components/random/lib/random.min.js',
+                    'bower_components/paho-mqtt-js/mqttws31.js'
+                ],
+                dest : 'js/bower_components.js'
+            },
         },
         cssmin : {
             css:{
@@ -86,7 +96,12 @@ module.exports = function(grunt) {
                 files: {
                     'js/freeboard_plugins.min.js' : [ 'js/freeboard_plugins.js' ]
                 }
-            }
+            },
+            'bower_components': {
+                files: {
+                    'js/bower_components.min.js' : [ 'js/bower_components.js' ]
+                }
+            },
         },
         'string-replace': {
             css: {
@@ -108,5 +123,8 @@ module.exports = function(grunt) {
     grunt.loadNpmTasks('grunt-contrib-watch');
     grunt.loadNpmTasks('grunt-contrib-cssmin');
     grunt.loadNpmTasks('grunt-string-replace');
-    grunt.registerTask('default', [ 'concat:css', 'cssmin:css', 'concat:fb', 'concat:thirdparty', 'concat:plugins', 'concat:fb_plugins', 'uglify:fb', 'uglify:plugins', 'uglify:fb_plugins', 'uglify:thirdparty', 'string-replace:css' ]);
+    grunt.registerTask('default', [ 'concat:css', 'cssmin:css',
+        'concat:fb', 'concat:thirdparty', 'concat:plugins', 'concat:fb_plugins', 'concat:bower_components',
+        'uglify:fb', 'uglify:plugins', 'uglify:fb_plugins', 'uglify:thirdparty', 'uglify:bower_components',
+        'string-replace:css' ]);
 };
