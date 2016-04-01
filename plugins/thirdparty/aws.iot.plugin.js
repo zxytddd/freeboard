@@ -196,16 +196,31 @@
             console.log("Connected");
             getThingState(currentSettings);
             subscribe_topics(currentSettings);
+            aws_data["connected"] = true;
+            updateCallback(aws_data);
         };
 
         function onConnectionLost() {
             console.log("Connection Lost");
+            aws_data["connected"] = false;
+            ThingReady(currentSettings, false);
+            updateCallback(aws_data);
         };
 
         function publish_msg(topic, msg) {
             if (client && client.connected) {
                 console.log("Public msg to " + topic + ":" + msg);
                 client.publish(topic, msg);
+            }
+        }
+
+        function ThingReady(Settings, flag) {
+            for (var i = Settings.things.length - 1; i >= 0; i--) {
+                thing = Settings.things[i].thing;
+                if (aws_data[thing] === undefined) {
+                    aws_data[thing] = {ready:false};
+                }
+                aws_data[thing].ready = flag;
             }
         }
 
@@ -221,8 +236,11 @@
                     console.log("Start get state of " + thingstate_topicpub);
                     client.publish(thingstate_topicpub, "{}");
                     client.publish(thingstate_topicpub, "{}");
+                    client.publish(thingstate_topicpub, "{}");
                 }
             }
+            ThingReady(Settings, false);
+            updateCallback(aws_data);
         }
 
         function onMessageArrived(message) {
@@ -233,7 +251,14 @@
             var operationStatus = topicTokens[5];
             var msg = JSON.parse(message.payloadString);
             if (aws_data[thing] === undefined) {
-                aws_data[thing] = { desired:{}, reported:{}, delta:{}};
+                aws_data[thing] = {ready:false};
+            } else {
+                if (aws_data[thing]["desired"] === undefined) {
+                    aws_data[thing]["desired"] = {};
+                }
+                if (aws_data[thing]["reported"] === undefined) {
+                    aws_data[thing]["reported"] = {};
+                }
             }
             if ((operation === "update") && (operationStatus === "delta")) {
                 aws_data[thing]["delta"] = {}
@@ -250,7 +275,8 @@
                 }
             }
             if ((operation === "get") && (operationStatus === "accepted")) {
-                aws_data[thing]["delta"] = {}
+                aws_data[thing].ready = true;
+                aws_data[thing]["delta"] = {};
                 for (key in msg.state) {
                     for (item in msg.state[key]) {
                         aws_data[thing][key][item] = msg.state[key][item];
