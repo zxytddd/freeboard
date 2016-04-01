@@ -430,6 +430,8 @@ function FreeboardModel(datasourcePlugins, widgetPlugins, freeboardUI)
 			if(self.allow_edit() && self.panes().length == 0)
 			{
 				self.setEditing(true);
+			} else {
+				self.setEditing(false);
 			}
 
 			if(_.isFunction(finishedCallback))
@@ -2211,6 +2213,8 @@ function WidgetModel(theFreeboardModel, widgetPlugins) {
 					self.shouldRender(true);
 					self._heightUpdate.valueHasMutated();
 
+					// Inject send method into widget
+					self.widgetInstance.sendValue = self.sendValue.bind(self)
 				});
 			}
 
@@ -2223,6 +2227,31 @@ function WidgetModel(theFreeboardModel, widgetPlugins) {
 			}
 		}
 	});
+
+
+	// Allow for widgets to send data back to sources
+	this.sendValue = function(sourceid, value) {
+		if (sourceid) {
+			console.log('try send', sourceid, value);
+			var matches = sourceid.match(/datasources\[["']([\w\-\_\$]+)["']\]/);
+			if (matches) {
+				_.each(theFreeboardModel.datasources(), function(d) {
+					if (d.name() == matches[1]) {
+						if (d.datasourceInstance.send && _.isFunction(d.datasourceInstance.send)) {
+							matches = sourceid.match(/datasources\[\"[\w\-\_\$]+\"\]((\[\"[\w\-\_\$]+\"\]){1,})/);
+							if (matches) {
+								// matches[1] is the topic to be sent
+								d.datasourceInstance.send(matches[1], value);
+							} else {
+								console.log('Not a valid topic to send!');
+							}
+						}
+					}
+				})
+			}
+		}
+	},
+
 
 	this.settings = ko.observable({});
 	this.settings.subscribe(function (newValue) {
@@ -3056,6 +3085,35 @@ $.extend(freeboard, jQuery.eventEmitter);
 		}
 
 		updateRefresh(currentSettings.refresh * 1000);
+
+		this.send = function(datasource, value) {
+			var requestURL = currentSettings.url;
+
+			if (errorStage == 2 && currentSettings.use_thingproxy) {
+				requestURL = (location.protocol == "https:" ? "https:" : "http:") + "//thingproxy.freeboard.io/fetch/" + encodeURI(currentSettings.url);
+			}
+
+			$.ajax({
+				url: requestURL,
+				type: "POST",
+				data: { value: value },
+				beforeSend: function (xhr) {
+					try {
+						_.each(currentSettings.headers, function (header) {
+							var name = header.name;
+							var value = header.value;
+
+							if (!_.isUndefined(name) && !_.isUndefined(value)) {
+								xhr.setRequestHeader(name, value);
+							}
+						});
+					}
+					catch (e) {
+					}
+				},
+			})
+		}
+
 
 		this.updateNow = function () {
 			if ((errorStage > 1 && !currentSettings.use_thingproxy) || errorStage > 2) // We've tried everything, let's quit
