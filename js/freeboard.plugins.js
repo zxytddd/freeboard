@@ -29,6 +29,35 @@
 
 		updateRefresh(currentSettings.refresh * 1000);
 
+		this.send = function(datasource, value) {
+			var requestURL = currentSettings.url;
+
+			if (errorStage == 2 && currentSettings.use_thingproxy) {
+				requestURL = (location.protocol == "https:" ? "https:" : "http:") + "//thingproxy.freeboard.io/fetch/" + encodeURI(currentSettings.url);
+			}
+
+			$.ajax({
+				url: requestURL,
+				type: "POST",
+				data: { value: value },
+				beforeSend: function (xhr) {
+					try {
+						_.each(currentSettings.headers, function (header) {
+							var name = header.name;
+							var value = header.value;
+
+							if (!_.isUndefined(name) && !_.isUndefined(value)) {
+								xhr.setRequestHeader(name, value);
+							}
+						});
+					}
+					catch (e) {
+					}
+				},
+			})
+		}
+
+
 		this.updateNow = function () {
 			if ((errorStage > 1 && !currentSettings.use_thingproxy) || errorStage > 2) // We've tried everything, let's quit
 			{
@@ -199,7 +228,7 @@
 
 		this.updateNow = function () {
 			$.ajax({
-				url: "http://api.openweathermap.org/data/2.5/weather?q=" + encodeURIComponent(currentSettings.location) + "&units=" + currentSettings.units,
+				url: "http://api.openweathermap.org/data/2.5/weather?APPID="+currentSettings.api_key+"&q=" + encodeURIComponent(currentSettings.location) + "&units=" + currentSettings.units,
 				dataType: "JSONP",
 				success: function (data) {
 					// Rejigger our data into something easier to understand
@@ -241,6 +270,12 @@
 		display_name: "Open Weather Map API",
 		settings: [
 			{
+				name: "api_key",
+				display_name: "API Key",
+				type: "text",
+				description: "Your personal API Key from Open Weather Map"
+			},
+            {
 				name: "location",
 				display_name: "Location",
 				type: "text",
@@ -493,8 +528,159 @@
 			newInstanceCallback(new clockDatasource(settings, updateCallback));
 		}
 	});
+freeboard.loadDatasourcePlugin({
+		// **type_name** (required) : A unique name for this plugin. This name should be as unique as possible to avoid collisions with other plugins, and should follow naming conventions for javascript variable and function declarations.
+		"type_name"   : "meshblu",
+		// **display_name** : The pretty name that will be used for display purposes for this plugin. If the name is not defined, type_name will be used instead.
+		"display_name": "Octoblu",
+        // **description** : A description of the plugin. This description will be displayed when the plugin is selected or within search results (in the future). The description may contain HTML if needed.
+        "description" : "app.octoblu.com",
+		// **external_scripts** : Any external scripts that should be loaded before the plugin instance is created.
+		"external_scripts" : [
+			"http://meshblu.octoblu.com/js/meshblu.js"
+		],
+		// **settings** : An array of settings that will be displayed for this plugin when the user adds it.
+		"settings"    : [
+			{
+				// **name** (required) : The name of the setting. This value will be used in your code to retrieve the value specified by the user. This should follow naming conventions for javascript variable and function declarations.
+				"name"         : "uuid",
+				// **display_name** : The pretty name that will be shown to the user when they adjust this setting.
+				"display_name" : "UUID",
+				// **type** (required) : The type of input expected for this setting. "text" will display a single text box input. Examples of other types will follow in this documentation.
+				"type"         : "text",
+				// **default_value** : A default value for this setting.
+				"default_value": "device uuid",
+				// **description** : Text that will be displayed below the setting to give the user any extra information.
+				"description"  : "your device UUID",
+                // **required** : Set to true if this setting is required for the datasource to be created.
+                "required" : true
+			},
+			{
+				// **name** (required) : The name of the setting. This value will be used in your code to retrieve the value specified by the user. This should follow naming conventions for javascript variable and function declarations.
+				"name"         : "token",
+				// **display_name** : The pretty name that will be shown to the user when they adjust this setting.
+				"display_name" : "Token",
+				// **type** (required) : The type of input expected for this setting. "text" will display a single text box input. Examples of other types will follow in this documentation.
+				"type"         : "text",
+				// **default_value** : A default value for this setting.
+				"default_value": "device token",
+				// **description** : Text that will be displayed below the setting to give the user any extra information.
+				"description"  : "your device TOKEN",
+                // **required** : Set to true if this setting is required for the datasource to be created.
+                "required" : true
+			},
+			{
+				// **name** (required) : The name of the setting. This value will be used in your code to retrieve the value specified by the user. This should follow naming conventions for javascript variable and function declarations.
+				"name"         : "server",
+				// **display_name** : The pretty name that will be shown to the user when they adjust this setting.
+				"display_name" : "Server",
+				// **type** (required) : The type of input expected for this setting. "text" will display a single text box input. Examples of other types will follow in this documentation.
+				"type"         : "text",
+				// **default_value** : A default value for this setting.
+				"default_value": "meshblu.octoblu.com",
+				// **description** : Text that will be displayed below the setting to give the user any extra information.
+				"description"  : "your server",
+                // **required** : Set to true if this setting is required for the datasource to be created.
+                "required" : true
+			},
+			{
+				// **name** (required) : The name of the setting. This value will be used in your code to retrieve the value specified by the user. This should follow naming conventions for javascript variable and function declarations.
+				"name"         : "port",
+				// **display_name** : The pretty name that will be shown to the user when they adjust this setting.
+				"display_name" : "Port",
+				// **type** (required) : The type of input expected for this setting. "text" will display a single text box input. Examples of other types will follow in this documentation.
+				"type"         : "number",
+				// **default_value** : A default value for this setting.
+				"default_value": 80,
+				// **description** : Text that will be displayed below the setting to give the user any extra information.
+				"description"  : "server port",
+                // **required** : Set to true if this setting is required for the datasource to be created.
+                "required" : true
+			}
+			
+		],
+		// **newInstance(settings, newInstanceCallback, updateCallback)** (required) : A function that will be called when a new instance of this plugin is requested.
+		// * **settings** : A javascript object with the initial settings set by the user. The names of the properties in the object will correspond to the setting names defined above.
+		// * **newInstanceCallback** : A callback function that you'll call when the new instance of the plugin is ready. This function expects a single argument, which is the new instance of your plugin object.
+		// * **updateCallback** : A callback function that you'll call if and when your datasource has an update for freeboard to recalculate. This function expects a single parameter which is a javascript object with the new, updated data. You should hold on to this reference and call it when needed.
+		newInstance   : function(settings, newInstanceCallback, updateCallback)
+		{
+			// myDatasourcePlugin is defined below.
+			newInstanceCallback(new meshbluSource(settings, updateCallback));
+		}
+	});
+
+
+	// ### Datasource Implementation
+	//
+	// -------------------
+	// Here we implement the actual datasource plugin. We pass in the settings and updateCallback.
+	var meshbluSource = function(settings, updateCallback)
+	{
+		// Always a good idea...
+		var self = this;
+
+		// Good idea to create a variable to hold on to our settings, because they might change in the future. See below.
+		var currentSettings = settings;
+
+		
+
+		/* This is some function where I'll get my data from somewhere */
+
+ 	
+		function getData()
+		{
+
+
+		 var conn = skynet.createConnection({
+    		"uuid": currentSettings.uuid,
+    		"token": currentSettings.token,
+    		"server": currentSettings.server, 
+    		"port": currentSettings.port
+  				});	
+			 
+			 conn.on('ready', function(data){	
+
+			 	conn.on('message', function(message){
+
+    				var newData = message;
+    				updateCallback(newData);
+
+ 						 });
+
+			 });
+			}
+
+	
+
+		// **onSettingsChanged(newSettings)** (required) : A public function we must implement that will be called when a user makes a change to the settings.
+		self.onSettingsChanged = function(newSettings)
+		{
+			// Here we update our current settings with the variable that is passed in.
+			currentSettings = newSettings;
+		}
+
+		// **updateNow()** (required) : A public function we must implement that will be called when the user wants to manually refresh the datasource
+		self.updateNow = function()
+		{
+			// Most likely I'll just call getData() here.
+			getData();
+		}
+
+		// **onDispose()** (required) : A public function we must implement that will be called when this instance of this plugin is no longer needed. Do anything you need to cleanup after yourself here.
+		self.onDispose = function()
+		{
+		
+			//conn.close();
+		}
+
+		// Here we call createRefreshTimer with our current settings, to kick things off, initially. Notice how we make use of one of the user defined settings that we setup earlier.
+	//	createRefreshTimer(currentSettings.refresh_time);
+	}
+
 
 }());
+
 // ┌────────────────────────────────────────────────────────────────────┐ \\
 // │ F R E E B O A R D                                                  │ \\
 // ├────────────────────────────────────────────────────────────────────┤ \\
@@ -505,7 +691,8 @@
 // └────────────────────────────────────────────────────────────────────┘ \\
 
 (function () {
-    var SPARKLINE_HISTORY_LENGTH = 100;
+	var SPARKLINE_HISTORY_LENGTH = 100;
+	var SPARKLINE_COLORS = ["#FF9900", "#FFFFFF", "#B3B4B4", "#6B6B6B", "#28DE28", "#13F7F9", "#E6EE18", "#C41204", "#CA3CB8", "#0B1CFB"];
 
     function easeTransitionText(newValue, textElement, duration) {
 
@@ -544,36 +731,84 @@
         }
     }
 
-    function addValueToSparkline(element, value) {
-        var values = $(element).data().values;
+	function addSparklineLegend(element, legend) {
+		var legendElt = $("<div class='sparkline-legend'></div>");
+		for(var i=0; i<legend.length; i++) {
+			var color = SPARKLINE_COLORS[i % SPARKLINE_COLORS.length];
+			var label = legend[i];
+			legendElt.append("<div class='sparkline-legend-value'><span style='color:" +
+							 color + "'>&#9679;</span>" + label + "</div>");
+		}
+		element.empty().append(legendElt);
 
-        if (!values) {
-            values = [];
-        }
+		freeboard.addStyle('.sparkline-legend', "margin:5px;");
+		freeboard.addStyle('.sparkline-legend-value',
+			'color:white; font:10px arial,san serif; float:left; overflow:hidden; width:50%;');
+		freeboard.addStyle('.sparkline-legend-value span',
+			'font-weight:bold; padding-right:5px;');
+	}
 
-        if (values.length >= SPARKLINE_HISTORY_LENGTH) {
-            values.shift();
-        }
+	function addValueToSparkline(element, value, legend) {
+		var values = $(element).data().values;
+		var valueMin = $(element).data().valueMin;
+		var valueMax = $(element).data().valueMax;
+		if (!values) {
+			values = [];
+			valueMin = undefined;
+			valueMax = undefined;
+		}
 
-        values.push(Number(value));
+		var collateValues = function(val, plotIndex) {
+			if(!values[plotIndex]) {
+				values[plotIndex] = [];
+			}
+			if (values[plotIndex].length >= SPARKLINE_HISTORY_LENGTH) {
+				values[plotIndex].shift();
+			}
+			values[plotIndex].push(Number(val));
 
-        $(element).data().values = values;
+			if(valueMin === undefined || val < valueMin) {
+				valueMin = val;
+			}
+			if(valueMax === undefined || val > valueMax) {
+				valueMax = val;
+			}
+		}
 
-        $(element).sparkline(values, {
-            type: "line",
-            height: "100%",
-            width: "100%",
-            fillColor: false,
-            lineColor: "#FF9900",
-            lineWidth: 2,
-            spotRadius: 3,
-            spotColor: false,
-            minSpotColor: "#78AB49",
-            maxSpotColor: "#78AB49",
-            highlightSpotColor: "#9D3926",
-            highlightLineColor: "#9D3926"
-        });
-    }
+		if(_.isArray(value)) {
+			_.each(value, collateValues);
+		} else {
+			collateValues(value, 0);
+		}
+		$(element).data().values = values;
+		$(element).data().valueMin = valueMin;
+		$(element).data().valueMax = valueMax;
+
+		var tooltipHTML = '<span style="color: {{color}}">&#9679;</span> {{y}}';
+
+		var composite = false;
+		_.each(values, function(valueArray, valueIndex) {
+			$(element).sparkline(valueArray, {
+				type: "line",
+				composite: composite,
+				height: "100%",
+				width: "100%",
+				fillColor: false,
+				lineColor: SPARKLINE_COLORS[valueIndex % SPARKLINE_COLORS.length],
+				lineWidth: 2,
+				spotRadius: 3,
+				spotColor: false,
+				minSpotColor: "#78AB49",
+				maxSpotColor: "#78AB49",
+				highlightSpotColor: "#9D3926",
+				highlightLineColor: "#9D3926",
+				chartRangeMin: valueMin,
+				chartRangeMax: valueMax,
+				tooltipFormat: (legend && legend[valueIndex])?tooltipHTML + ' (' + legend[valueIndex] + ')':tooltipHTML
+			});
+			composite = true;
+		});
+	}
 
 	var valueStyle = freeboard.getStyleString("values");
 
@@ -912,24 +1147,44 @@
 
         var titleElement = $('<h2 class="section-title"></h2>');
         var sparklineElement = $('<div class="sparkline"></div>');
+		var sparklineLegend = $('<div></div>');
+		var currentSettings = settings;
 
         this.render = function (element) {
-            $(element).append(titleElement).append(sparklineElement);
+            $(element).append(titleElement).append(sparklineElement).append(sparklineLegend);
         }
 
         this.onSettingsChanged = function (newSettings) {
+			currentSettings = newSettings;
             titleElement.html((_.isUndefined(newSettings.title) ? "" : newSettings.title));
+
+			if(newSettings.include_legend) {
+				addSparklineLegend(sparklineLegend,  newSettings.legend.split(","));
+			}
         }
 
         this.onCalculatedValueChanged = function (settingName, newValue) {
-            addValueToSparkline(sparklineElement, newValue);
+			if (currentSettings.legend) {
+				addValueToSparkline(sparklineElement, newValue, currentSettings.legend.split(","));
+			} else {
+				addValueToSparkline(sparklineElement, newValue);
+			}
         }
 
         this.onDispose = function () {
         }
 
         this.getHeight = function () {
-            return 2;
+			var legendHeight = 0;
+			if (currentSettings.include_legend && currentSettings.legend) {
+				var legendLength = currentSettings.legend.split(",").length;
+				if (legendLength > 4) {
+					legendHeight = Math.floor((legendLength-1) / 4) * 0.5;
+				} else if (legendLength) {
+					legendHeight = 0.5;
+				}
+			}
+			return 2 + legendHeight;
         }
 
         this.onSettingsChanged(settings);
@@ -950,8 +1205,20 @@
             {
                 name: "value",
                 display_name: "Value",
-                type: "calculated"
-            }
+                type: "calculated",
+				multi_input: "true"
+            },
+			{
+				name: "include_legend",
+				display_name: "Include Legend",
+				type: "boolean"
+			},
+			{
+				name: "legend",
+				display_name: "Legend",
+				type: "text",
+				description: "Comma-separated for multiple sparklines"
+			}
         ],
         newInstance: function (settings, newInstanceCallback) {
             newInstanceCallback(new sparklineWidget(settings));
@@ -1169,15 +1436,17 @@
         var indicatorElement = $('<div class="indicator-light"></div>');
         var currentSettings = settings;
         var isOn = false;
+        var onText;
+        var offText;
 
         function updateState() {
             indicatorElement.toggleClass("on", isOn);
 
             if (isOn) {
-                stateElement.text((_.isUndefined(currentSettings.on_text) ? "" : currentSettings.on_text));
+                stateElement.text((_.isUndefined(onText) ? (_.isUndefined(currentSettings.on_text) ? "" : currentSettings.on_text) : onText));
             }
             else {
-                stateElement.text((_.isUndefined(currentSettings.off_text) ? "" : currentSettings.off_text));
+                stateElement.text((_.isUndefined(offText) ? (_.isUndefined(currentSettings.off_text) ? "" : currentSettings.off_text) : offText));
             }
         }
 
@@ -1194,6 +1463,12 @@
         this.onCalculatedValueChanged = function (settingName, newValue) {
             if (settingName == "value") {
                 isOn = Boolean(newValue);
+            }
+            if (settingName == "on_text") {
+                onText = newValue;
+            }
+            if (settingName == "off_text") {
+                offText = newValue;
             }
 
             updateState();
@@ -1213,26 +1488,26 @@
         type_name: "indicator",
         display_name: "Indicator Light",
         settings: [
-            {
-                name: "title",
-                display_name: "Title",
-                type: "text"
-            },
-            {
-                name: "value",
-                display_name: "Value",
-                type: "calculated"
-            },
-            {
-                name: "on_text",
-                display_name: "On Text",
-                type: "calculated"
-            },
-            {
-                name: "off_text",
-                display_name: "Off Text",
-                type: "calculated"
-            }
+	        {
+	            name: "title",
+	            display_name: "Title",
+	            type: "text"
+	        },
+	        {
+	            name: "value",
+	            display_name: "Value",
+	            type: "calculated"
+	        },
+	        {
+	            name: "on_text",
+	            display_name: "On Text",
+	            type: "calculated"
+	        },
+	        {
+	            name: "off_text",
+	            display_name: "Off Text",
+	            type: "calculated"
+	        }
         ],
         newInstance: function (settings, newInstanceCallback) {
             newInstanceCallback(new indicatorWidget(settings));

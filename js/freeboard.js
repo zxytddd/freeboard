@@ -430,6 +430,8 @@ function FreeboardModel(datasourcePlugins, widgetPlugins, freeboardUI)
 			if(self.allow_edit() && self.panes().length == 0)
 			{
 				self.setEditing(true);
+			} else {
+				self.setEditing(false);
 			}
 
 			if(_.isFunction(finishedCallback))
@@ -534,11 +536,27 @@ function FreeboardModel(datasourcePlugins, widgetPlugins, freeboardUI)
 		}
 	}
 
-	this.saveDashboard = function()
+	this.saveDashboardClicked = function(){
+		var target = $(event.currentTarget);
+		var siblingsShown = target.data('siblings-shown') || false;
+		if(!siblingsShown){
+			$(event.currentTarget).siblings('label').fadeIn('slow');
+		}else{
+			$(event.currentTarget).siblings('label').fadeOut('slow');
+		}
+		target.data('siblings-shown', !siblingsShown);
+	}
+
+	this.saveDashboard = function(_thisref, event)
 	{
+		var pretty = $(event.currentTarget).data('pretty');
 		var contentType = 'application/octet-stream';
 		var a = document.createElement('a');
-		var blob = new Blob([JSON.stringify(self.serialize())], {'type': contentType});
+		if(pretty){
+			var blob = new Blob([JSON.stringify(self.serialize(), null, '\t')], {'type': contentType});
+		}else{
+			var blob = new Blob([JSON.stringify(self.serialize())], {'type': contentType});
+		}
 		document.body.appendChild(a);
 		a.href = window.URL.createObjectURL(blob);
 		a.download = "dashboard.json";
@@ -1283,9 +1301,9 @@ PluginEditor = function(jsEditor, valueEditor)
 		if($("#setting-row-instance-name").length)
 		{
 			$("#setting-row-instance-name").nextAll().remove();
-	  	 }
-	    	else
-	    	{
+		}
+		else
+		{
 			$("#setting-row-plugin-types").nextAll().remove();
 		}
 	}
@@ -1293,6 +1311,67 @@ PluginEditor = function(jsEditor, valueEditor)
 	function _isNumerical(n)
 	{
 		return !isNaN(parseFloat(n)) && isFinite(n);
+	}
+
+	function _appendCalculatedSettingRow(valueCell, newSettings, settingDef, currentValue, includeRemove)
+	{
+		var input = $('<textarea></textarea>');
+
+		if(settingDef.multi_input) {
+			input.change(function() {
+				var arrayInput = [];
+				$(valueCell).find('textarea').each(function() {
+					var thisVal = $(this).val();
+					if(thisVal) {
+						arrayInput = arrayInput.concat(thisVal);
+					}
+				});
+				newSettings.settings[settingDef.name] = arrayInput;
+			});
+		} else {
+			input.change(function() {
+				newSettings.settings[settingDef.name] = $(this).val();
+			});
+		}
+
+		if(currentValue) {
+			input.val(currentValue);
+		}
+
+		valueEditor.createValueEditor(input);
+
+		var datasourceToolbox = $('<ul class="board-toolbar datasource-input-suffix"></ul>');
+		var wrapperDiv = $('<div class="calculated-setting-row"></div>');
+		wrapperDiv.append(input).append(datasourceToolbox);
+
+		var datasourceTool = $('<li><i class="icon-plus icon-white"></i><label>DATASOURCE</label></li>')
+			.mousedown(function(e) {
+				e.preventDefault();
+				$(input).val("").focus().insertAtCaret("datasources[\"").trigger("freeboard-eval");
+			});
+		datasourceToolbox.append(datasourceTool);
+
+		var jsEditorTool = $('<li><i class="icon-fullscreen icon-white"></i><label>.JS EDITOR</label></li>')
+			.mousedown(function(e) {
+				e.preventDefault();
+				jsEditor.displayJSEditor(input.val(), function(result) {
+					input.val(result);
+					input.change();
+				});
+			});
+		datasourceToolbox.append(jsEditorTool);
+
+		if(includeRemove) {
+			var removeButton = $('<li class="remove-setting-row"><i class="icon-minus icon-white"></i><label></label></li>')
+				.mousedown(function(e) {
+					e.preventDefault();
+					wrapperDiv.remove();
+					$(valueCell).find('textarea:first').change();
+				});
+			datasourceToolbox.prepend(removeButton);
+		}
+
+		$(valueCell).append(wrapperDiv);
 	}
 
 	function createPluginEditor(title, pluginTypes, currentTypeName, currentSettingsValues, settingsSavedCallback)
@@ -1316,7 +1395,7 @@ PluginEditor = function(jsEditor, valueEditor)
 		var pluginDescriptionElement = $('<div id="plugin-description"></div>').hide();
 		form.append(pluginDescriptionElement);
 
-		function createSettingsFromDefinition(settingsDefs)
+		function createSettingsFromDefinition(settingsDefs, typeaheadSource, typeaheadDataSegment)
 		{
 			_.each(settingsDefs, function(settingDef)
 			{
@@ -1410,16 +1489,16 @@ PluginEditor = function(jsEditor, valueEditor)
 							});
 
 							subsettingRow.append($('<td class="table-row-operation"></td>').append($('<ul class="board-toolbar"></ul>').append($('<li></li>').append($('<i class="icon-trash icon-white"></i>').click(function()
-												{
-													var subSettingIndex = newSettings.settings[settingDef.name].indexOf(newSetting);
+							{
+								var subSettingIndex = newSettings.settings[settingDef.name].indexOf(newSetting);
 
-													if(subSettingIndex != -1)
-													{
-														newSettings.settings[settingDef.name].splice(subSettingIndex, 1);
-														subsettingRow.remove();
-														processHeaderVisibility();
-													}
-												})))));
+								if(subSettingIndex != -1)
+								{
+									newSettings.settings[settingDef.name].splice(subSettingIndex, 1);
+									subsettingRow.remove();
+									processHeaderVisibility();
+								}
+							})))));
 
 							subTableDiv.scrollTop(subTableDiv[0].scrollHeight);
 
@@ -1450,7 +1529,7 @@ PluginEditor = function(jsEditor, valueEditor)
 					{
 						newSettings.settings[settingDef.name] = currentSettingsValues[settingDef.name];
 
-                        var onOffSwitch = $('<div class="onoffswitch"><label class="onoffswitch-label" for="' + settingDef.name + '-onoff"><div class="onoffswitch-inner"><span class="on">YES</span><span class="off">NO</span></div><div class="onoffswitch-switch"></div></label></div>').appendTo(valueCell);
+						var onOffSwitch = $('<div class="onoffswitch"><label class="onoffswitch-label" for="' + settingDef.name + '-onoff"><div class="onoffswitch-inner"><span class="on">YES</span><span class="off">NO</span></div><div class="onoffswitch-switch"></div></label></div>').appendTo(valueCell);
 
 						var input = $('<input type="checkbox" name="onoffswitch" class="onoffswitch-checkbox" id="' + settingDef.name + '-onoff">').prependTo(onOffSwitch).change(function()
 						{
@@ -1515,12 +1594,44 @@ PluginEditor = function(jsEditor, valueEditor)
 					{
 						newSettings.settings[settingDef.name] = currentSettingsValues[settingDef.name];
 
-
 						if(settingDef.type == "calculated")
 						{
-							var input = $('<textarea></textarea>').appendTo(valueCell).change(function()
+							if(settingDef.name in currentSettingsValues) {
+								var currentValue = currentSettingsValues[settingDef.name];
+								if(settingDef.multi_input && _.isArray(currentValue)) {
+									var includeRemove = false;
+									for(var i=0; i<currentValue.length; i++) {
+										_appendCalculatedSettingRow(valueCell, newSettings, settingDef, currentValue[i], includeRemove);
+										includeRemove = true;
+									}
+								} else {
+									_appendCalculatedSettingRow(valueCell, newSettings, settingDef, currentValue, false);
+								}
+							} else {
+								_appendCalculatedSettingRow(valueCell, newSettings, settingDef, null, false);
+							}
+
+							if(settingDef.multi_input) {
+								var inputAdder = $('<ul class="board-toolbar"><li class="add-setting-row"><i class="icon-plus icon-white"></i><label>ADD</label></li></ul>')
+									.mousedown(function(e) {
+										e.preventDefault();
+										_appendCalculatedSettingRow(valueCell, newSettings, settingDef, null, true);
+									});
+								$(valueCell).siblings('.form-label').append(inputAdder);
+							}
+						}
+						else
+						{
+							var input = $('<input type="text">').appendTo(valueCell).change(function()
 							{
-								newSettings.settings[settingDef.name] = $(this).val();
+								if(settingDef.type == "number")
+								{
+									newSettings.settings[settingDef.name] = Number($(this).val());
+								}
+								else
+								{
+									newSettings.settings[settingDef.name] = $(this).val();
+								}
 							});
 
 							if(settingDef.name in currentSettingsValues)
@@ -1528,47 +1639,60 @@ PluginEditor = function(jsEditor, valueEditor)
 								input.val(currentSettingsValues[settingDef.name]);
 							}
 
-							valueEditor.createValueEditor(input);
+							if(typeaheadSource && settingDef.typeahead_data_field){
+								input.addClass('typeahead_data_field-' + settingDef.typeahead_data_field);
+							}
 
-                            var datasourceToolbox = $('<ul class="board-toolbar datasource-input-suffix"></ul>');
+							if(typeaheadSource && settingDef.typeahead_field){
+								var typeaheadValues = [];
 
-                            var datasourceTool = $('<li><i class="icon-plus icon-white"></i><label>DATASOURCE</label></li>').mousedown(function(e)
-                            {
-                                e.preventDefault();
-                                $(input).focus();
-                                $(input).insertAtCaret("datasources[\"");
-                                $(input).trigger("freeboard-eval");
-                            });
+								input.keyup(function(event){
+									if(event.which >= 65 && event.which <= 91) {
+										input.trigger('change');
+									}
+								});
 
-                            var jsEditorTool = $('<li><i class="icon-fullscreen icon-white"></i><label>.JS EDITOR</label></li>').mousedown(function(e)
-                            {
-                                e.preventDefault();
+								$(input).autocomplete({
+									source: typeaheadValues,
+									select: function(event, ui){
+										input.val(ui.item.value);
+										input.trigger('change');
+									}
+								});
 
-                                jsEditor.displayJSEditor(input.val(), function(result){
-                                    input.val(result);
-                                    input.change();
-                                });
-                            });
+								input.change(function(event){
+									var value = input.val();
+									var source = _.template(typeaheadSource)({input: value});
+									$.get(source, function(data){
+										if(typeaheadDataSegment){
+											data = data[typeaheadDataSegment];
+										}
+										data  = _.select(data, function(elm){
+											return elm[settingDef.typeahead_field][0] == value[0];
+										});
 
-                            $(valueCell).append(datasourceToolbox.append([datasourceTool, jsEditorTool]));
-						}
-						else
-						{
-							var input = $('<input type="text">').appendTo(valueCell).change(function()
-							{
-                                if(settingDef.type == "number")
-                                {
-                                    newSettings.settings[settingDef.name] = Number($(this).val());
-                                }
-                                else
-                                {
-								    newSettings.settings[settingDef.name] = $(this).val();
-                                }
-							});
+										typeaheadValues = _.map(data, function(elm){
+											return elm[settingDef.typeahead_field];
+										});
+										$(input).autocomplete("option", "source", typeaheadValues);
 
-							if(settingDef.name in currentSettingsValues)
-							{
-								input.val(currentSettingsValues[settingDef.name]);
+										if(data.length == 1){
+											data = data[0];
+											//we found the one. let's use it to populate the other info
+											for(var field in data){
+												if(data.hasOwnProperty(field)){
+													var otherInput = $(_.template('input.typeahead_data_field-<%= field %>')({field: field}));
+													if(otherInput){
+														otherInput.val(data[field]);
+														if(otherInput.val() != input.val()) {
+															otherInput.trigger('change');
+														}
+													}
+												}
+											}
+										}
+									});
+								});
 							}
 						}
 
@@ -1576,10 +1700,10 @@ PluginEditor = function(jsEditor, valueEditor)
 					}
 				}
 
-                if(!_.isUndefined(settingDef.suffix))
-                {
-                    valueCell.append($('<div class="input-suffix">' + settingDef.suffix + '</div>'));
-                }
+				if(!_.isUndefined(settingDef.suffix))
+				{
+					valueCell.append($('<div class="input-suffix">' + settingDef.suffix + '</div>'));
+				}
 
 				if(!_.isUndefined(settingDef.description))
 				{
@@ -1592,7 +1716,7 @@ PluginEditor = function(jsEditor, valueEditor)
 		new DialogBox(form, title, "Save", "Cancel", function()
 		{
 			$(".validation-error").remove();
-	
+
 			// Loop through each setting and validate it
 			for(var index = 0; index < selectedType.settings.length; index++)
 			{
@@ -1600,12 +1724,17 @@ PluginEditor = function(jsEditor, valueEditor)
 
 				if(settingDef.required && (_.isUndefined(newSettings.settings[settingDef.name]) || newSettings.settings[settingDef.name] == ""))
 				{
-                    _displayValidationError(settingDef.name, "This is required.");
+					_displayValidationError(settingDef.name, "This is required.");
+					return true;
+				}
+				else if(settingDef.type == "integer" && (newSettings.settings[settingDef.name] % 1 !== 0))
+				{
+					_displayValidationError(settingDef.name, "Must be a whole number.");
 					return true;
 				}
 				else if(settingDef.type == "number" && !_isNumerical(newSettings.settings[settingDef.name]))
 				{
-                    _displayValidationError(settingDef.name, "Must be a number.");
+					_displayValidationError(settingDef.name, "Must be a number.");
 					return true;
 				}
 			}
@@ -1649,19 +1778,19 @@ PluginEditor = function(jsEditor, valueEditor)
 				}
 				else
 				{
-                    $("#setting-row-instance-name").show();
+					$("#setting-row-instance-name").show();
 
-                    if(selectedType.description && selectedType.description.length > 0)
-                    {
-                        pluginDescriptionElement.html(selectedType.description).show();
-                    }
-                    else
-                    {
-                        pluginDescriptionElement.hide();
-                    }
+					if(selectedType.description && selectedType.description.length > 0)
+					{
+						pluginDescriptionElement.html(selectedType.description).show();
+					}
+					else
+					{
+						pluginDescriptionElement.hide();
+					}
 
 					$("#dialog-ok").show();
-					createSettingsFromDefinition(selectedType.settings);
+					createSettingsFromDefinition(selectedType.settings, selectedType.typeahead_source, selectedType.typeahead_data_segment);
 				}
 			});
 		}
@@ -1673,30 +1802,30 @@ PluginEditor = function(jsEditor, valueEditor)
 			createSettingsFromDefinition(selectedType.settings);
 		}
 
-        if(typeSelect)
-        {
-            if(_.isUndefined(currentTypeName))
-            {
-                $("#setting-row-instance-name").hide();
-                $("#dialog-ok").hide();
-            }
-            else
-            {
-                $("#dialog-ok").show();
-                typeSelect.val(currentTypeName).trigger("change");
-            }
-        }
+		if(typeSelect)
+		{
+			if(_.isUndefined(currentTypeName))
+			{
+				$("#setting-row-instance-name").hide();
+				$("#dialog-ok").hide();
+			}
+			else
+			{
+				$("#dialog-ok").show();
+				typeSelect.val(currentTypeName).trigger("change");
+			}
+		}
 	}
 
 	// Public API
 	return {
 		createPluginEditor : function(
-					title,
-					pluginTypes,
-					currentInstanceName,
-					currentTypeName,
-					currentSettingsValues,
-					settingsSavedCallback)
+			title,
+			pluginTypes,
+			currentInstanceName,
+			currentTypeName,
+			currentSettingsValues,
+			settingsSavedCallback)
 		{
 			createPluginEditor(title, pluginTypes, currentInstanceName, currentTypeName, currentSettingsValues, settingsSavedCallback);
 		}
@@ -1705,10 +1834,51 @@ PluginEditor = function(jsEditor, valueEditor)
 
 ValueEditor = function(theFreeboardModel)
 {
-	var _veDatasourceRegex = new RegExp(".*datasources\\[\"([^\"]*)(\"\\]\\[\")?(.*)$");
+	var _veDatasourceRegex = new RegExp(".*datasources\\[\"([^\"]*)(\"\\])?(.*)$");
 
+	var dropdown = null;
+	var selectedOptionIndex = 0;
 	var _autocompleteOptions = [];
-	var _autocompleteReplacementString;
+	var currentValue = null;
+
+	var EXPECTED_TYPE = {
+		ANY : "any",
+		ARRAY : "array",
+		OBJECT : "object",
+		STRING : "string",
+		NUMBER : "number",
+		BOOLEAN : "boolean"
+	};
+
+	function _isPotentialTypeMatch(value, expectsType)
+	{
+		if(_.isArray(value) || _.isObject(value))
+		{
+			return true;
+		}
+		return _isTypeMatch(value, expectsType);
+	}
+
+	function _isTypeMatch(value, expectsType) {
+		switch(expectsType)
+		{
+		case EXPECTED_TYPE.ANY: return true;
+		case EXPECTED_TYPE.ARRAY: return _.isArray(value);
+		case EXPECTED_TYPE.OBJECT: return _.isObject(value);
+		case EXPECTED_TYPE.STRING: return _.isString(value);
+		case EXPECTED_TYPE.NUMBER: return _.isNumber(value);
+		case EXPECTED_TYPE.BOOLEAN: return _.isBoolean(value);
+		}
+	}
+
+	function _checkCurrentValueType(element, expectsType) {
+		$(element).parent().find(".validation-error").remove();
+		if(!_isTypeMatch(currentValue, expectsType)) {
+			$(element).parent().append("<div class='validation-error'>" +
+				"This field expects an expression that evaluates to type " +
+				expectsType + ".</div>");
+		}
+	}
 
 	function _resizeValueEditor(element)
 	{
@@ -1719,25 +1889,27 @@ ValueEditor = function(theFreeboardModel)
 		$(element).css({height: newHeight + "px"});
 	}
 
-	function _autocompleteFromDatasource(inputString, datasources)
+	function _autocompleteFromDatasource(inputString, datasources, expectsType)
 	{
 		var match = _veDatasourceRegex.exec(inputString);
 
 		var options = [];
-		var replacementString;
 
 		if(match)
 		{
-			if(match[1] == "") // List all datasources
+			// Editor value is: datasources["; List all datasources
+			if(match[1] == "")
 			{
 				_.each(datasources, function(datasource)
 				{
-					options.push({value: datasource.name(), follow_char: "\"][\""});
+					options.push({value: datasource.name(), entity: undefined,
+						precede_char: "", follow_char: "\"]"});
 				});
 			}
-			else if(match[1] != "" && _.isUndefined(match[2])) // List partial datasources
+			// Editor value is a partial match for a datasource; list matching datasources
+			else if(match[1] != "" && _.isUndefined(match[2]))
 			{
-				replacementString = match[1];
+				var replacementString = match[1];
 
 				_.each(datasources, function(datasource)
 				{
@@ -1745,12 +1917,15 @@ ValueEditor = function(theFreeboardModel)
 
 					if(dsName != replacementString && dsName.indexOf(replacementString) == 0)
 					{
-						options.push({value: dsName, follow_char: "\"][\""});
+						options.push({value: dsName, entity: undefined,
+							precede_char: "", follow_char: "\"]"});
 					}
 				});
 			}
+			// Editor value matches a datasources; parse JSON in order to populate list
 			else
 			{
+				// We already have a datasource selected; find it
 				var datasource = _.find(datasources, function(datasource)
 				{
 					return (datasource.name() === match[1]);
@@ -1758,186 +1933,189 @@ ValueEditor = function(theFreeboardModel)
 
 				if(!_.isUndefined(datasource))
 				{
-					var dataPath = "";
+					var dataPath = "data";
+					var remainder = "";
 
+					// Parse the partial JSON selectors
 					if(!_.isUndefined(match[2]))
 					{
-						dataPath = match[2] + match[3];
+						// Strip any incomplete field values, and store the remainder
+						var remainderIndex = match[3].lastIndexOf("]") + 1;
+						dataPath = dataPath + match[3].substring(0, remainderIndex);
+						remainder = match[3].substring(remainderIndex, match[3].length);
+						remainder = remainder.replace(/^[\[\"]*/, "");
+						remainder = remainder.replace(/[\"\]]*$/, "");
 					}
 
-					var dataPathItems = dataPath.split("\"][\"");
-					dataPath = "data";
-
-					for(var index = 1; index < dataPathItems.length - 1; index++)
-					{
-						if(dataPathItems[index] != "")
-						{
-							dataPathItem = "[\"" + dataPathItems[index] + "\"]";
-							dataPath = dataPath + dataPathItem;
-						}
-					}
-
-					var lastPathObject = _.last(dataPathItems);
-
-					// If the last character is a ", then ignore it
-					if(lastPathObject.charAt(lastPathObject.length - 1) == "\"")
-					{
-						lastPathObject = lastPathObject.replace(/\[\"?$/, "");
-						dataPath = dataPath + "[\"" + lastPathObject + "\"]";
-					}
-
+					// Get the data for the last complete JSON field
 					var dataValue = datasource.getDataRepresentation(dataPath);
+					currentValue = dataValue;
 
+					// For arrays, list out the indices
 					if(_.isArray(dataValue))
 					{
 						for(var index = 0; index < dataValue.length; index++)
 						{
-							var followChar = "\"]";
-
-							if(_.isObject(dataValue[index]))
+							if(index.toString().indexOf(remainder) == 0)
 							{
-								followChar = followChar + "\"][\"";
+								var value = dataValue[index];
+								if(_isPotentialTypeMatch(value, expectsType))
+								{
+									options.push({value: index, entity: value,
+										precede_char: "[", follow_char: "]",
+										preview: value.toString()});
+								}
 							}
-							else if(_.isArray(dataValue[index]))
-							{
-								followChar = followChar + "\"][";
-							}
-
-							options.push({value: index, follow_char: followChar});
 						}
 					}
+					// For objects, list out the keys
 					else if(_.isObject(dataValue))
 					{
-						replacementString = lastPathObject;
-
-						if(_.keys(dataValue).indexOf(replacementString) == -1)
+						_.each(dataValue, function(value, name)
 						{
-							_.each(dataValue, function(value, name)
+							if(name.indexOf(remainder) == 0)
 							{
-								if(name != lastPathObject && name.indexOf(lastPathObject) == 0)
+								if(_isPotentialTypeMatch(value, expectsType))
 								{
-									var followChar = "\"]";
-
-									if(_.isArray(value))
-									{
-										followChar = "\"][";
-									}
-									else if(_.isObject(value))
-									{
-										followChar = "\"][\"";
-									}
-
-									options.push({value: name, follow_char: followChar});
+									options.push({value: name, entity: value,
+										precede_char: "[\"", follow_char: "\"]"});
 								}
-							});
-						}
+							}
+						});
+					}
+					// For everything else, do nothing (no further selection possible)
+					else
+					{
+						// no-op
 					}
 				}
 			}
 		}
 		_autocompleteOptions = options;
-		_autocompleteReplacementString = replacementString;
 	}
 
-	function createValueEditor(element)
+	function _renderAutocompleteDropdown(element, expectsType)
 	{
-		var dropdown = null;
-		var selectedOptionIndex = 0;
+		var inputString = $(element).val().substring(0, $(element).getCaretPosition());
 
-		$(element).addClass("calculated-value-input").bind("keyup mouseup freeboard-eval",function(event)
+		// Weird issue where the textarea box was putting in ASCII (nbsp) for spaces.
+		inputString = inputString.replace(String.fromCharCode(160), " ");
+
+		_autocompleteFromDatasource(inputString, theFreeboardModel.datasources(), expectsType);
+
+		if(_autocompleteOptions.length > 0)
 		{
-			// Ignore arrow keys and enter keys
-			if(dropdown && event.type == "keyup" && (event.keyCode == 38 || event.keyCode == 40 || event.keyCode == 13))
+			if(!dropdown)
 			{
-				event.preventDefault();
-				return;
+				dropdown = $('<ul id="value-selector" class="value-dropdown"></ul>')
+					.insertAfter(element)
+					.width($(element).outerWidth() - 2)
+					.css("left", $(element).position().left)
+					.css("top", $(element).position().top + $(element).outerHeight() - 1);
 			}
 
-			var inputString = $(element).val().substring(0, $(element).getCaretPosition());
-			inputString = inputString.replace(String.fromCharCode(160), " "); // Weird issue where the textarea box was putting in ASCII (non breaking space) for spaces.
+			dropdown.empty();
+			dropdown.scrollTop(0);
 
-			_autocompleteFromDatasource(inputString, theFreeboardModel.datasources());
+			var selected = true;
+			selectedOptionIndex = 0;
 
-			if(_autocompleteOptions.length > 0)
+			_.each(_autocompleteOptions, function(option, index)
 			{
-				if(!dropdown)
+				var li = _renderAutocompleteDropdownOption(element, inputString, option, index);
+				if(selected)
 				{
-					dropdown = $('<ul id="value-selector" class="value-dropdown"></ul>').insertAfter(element).width($(element).outerWidth() - 2).css("left", $(element).position().left).css("top", $(element).position().top + $(element).outerHeight() - 1);
+					$(li).addClass("selected");
+					selected = false;
+				}
+			});
+		}
+		else
+		{
+			_checkCurrentValueType(element, expectsType);
+			$(element).next("ul#value-selector").remove();
+			dropdown = null;
+			selectedOptionIndex = -1;
+		}
+	}
+
+	function _renderAutocompleteDropdownOption(element, inputString, option, currentIndex)
+	{
+		var optionLabel = option.value;
+		if(option.preview)
+		{
+			optionLabel = optionLabel + "<span class='preview'>" + option.preview + "</span>";
+		}
+		var li = $('<li>' + optionLabel + '</li>').appendTo(dropdown)
+			.mouseenter(function()
+			{
+				$(this).trigger("freeboard-select");
+			})
+			.mousedown(function(event)
+			{
+				$(this).trigger("freeboard-insertValue");
+				event.preventDefault();
+			})
+			.data("freeboard-optionIndex", currentIndex)
+			.data("freeboard-optionValue", option.value)
+			.bind("freeboard-insertValue", function()
+			{
+				var optionValue = option.value;
+				optionValue = option.precede_char + optionValue + option.follow_char;
+
+				var replacementIndex = inputString.lastIndexOf("]");
+				if(replacementIndex != -1)
+				{
+					$(element).replaceTextAt(replacementIndex+1, $(element).val().length,
+						optionValue);
+				}
+				else
+				{
+					$(element).insertAtCaret(optionValue);
 				}
 
-				dropdown.empty();
-				dropdown.scrollTop(0);
+				currentValue = option.entity;
+				$(element).triggerHandler("mouseup");
+			})
+			.bind("freeboard-select", function()
+			{
+				$(this).parent().find("li.selected").removeClass("selected");
+				$(this).addClass("selected");
+				selectedOptionIndex = $(this).data("freeboard-optionIndex");
+			});
+		return li;
+	}
 
-				var selected = true;
-				selectedOptionIndex = 0;
-
-				var currentIndex = 0;
-
-				_.each(_autocompleteOptions, function(option)
+	function createValueEditor(element, expectsType)
+	{
+		$(element).addClass("calculated-value-input")
+			.bind("keyup mouseup freeboard-eval", function(event) {
+				// Ignore arrow keys and enter keys
+				if(dropdown && event.type == "keyup"
+					&& (event.keyCode == 38 || event.keyCode == 40 || event.keyCode == 13))
 				{
-					var li = $('<li>' + option.value + '</li>').appendTo(dropdown).mouseenter(function()
-					{
-						$(this).trigger("freeboard-select");
-					}).mousedown(function(event)
-						{
-							$(this).trigger("freeboard-insertValue");
-							event.preventDefault();
-						}).data("freeboard-optionIndex", currentIndex).data("freeboard-optionValue", option.value).bind("freeboard-insertValue",function()
-						{
-							var optionValue = option.value;
-
-							if(!_.isUndefined(option.follow_char))
-							{
-								optionValue = optionValue + option.follow_char;
-							}
-
-							if(!_.isUndefined(_autocompleteReplacementString))
-							{
-								var replacementIndex = inputString.lastIndexOf(_autocompleteReplacementString);
-
-								if(replacementIndex != -1)
-								{
-									$(element).replaceTextAt(replacementIndex, replacementIndex + _autocompleteReplacementString.length, optionValue);
-								}
-							}
-							else
-							{
-								$(element).insertAtCaret(optionValue);
-							}
-
-							$(element).triggerHandler("mouseup");
-						}).bind("freeboard-select", function()
-						{
-							$(this).parent().find("li.selected").removeClass("selected");
-							$(this).addClass("selected");
-							selectedOptionIndex = $(this).data("freeboard-optionIndex");
-						});
-
-					if(selected)
-					{
-						$(li).addClass("selected");
-						selected = false;
-					}
-
-					currentIndex++;
-				});
-			}
-			else
+					event.preventDefault();
+					return;
+				}
+				_renderAutocompleteDropdown(element, expectsType);
+			})
+			.focus(function()
 			{
-				$(element).next("ul#value-selector").remove();
-				dropdown = null;
-				selectedOptionIndex = -1;
-			}
-		}).focus(function()
-			{
+				$(element).css({"z-index" : 3001});
 				_resizeValueEditor(element);
-			}).focusout(function()
+			})
+			.focusout(function()
 			{
-				$(element).css({height: ""});
+				_checkCurrentValueType(element, expectsType);
+				$(element).css({
+					"height": "",
+					"z-index" : 3000
+				});
 				$(element).next("ul#value-selector").remove();
 				dropdown = null;
 				selectedOptionIndex = -1;
-			}).bind("keydown", function(event)
+			})
+			.bind("keydown", function(event)
 			{
 
 				if(dropdown)
@@ -1977,7 +2155,8 @@ ValueEditor = function(theFreeboardModel)
 
 						if(selectedOptionIndex != -1)
 						{
-							$(dropdown).find("li").eq(selectedOptionIndex).trigger("freeboard-insertValue");
+							$(dropdown).find("li").eq(selectedOptionIndex)
+								.trigger("freeboard-insertValue");
 						}
 					}
 				}
@@ -1986,21 +2165,24 @@ ValueEditor = function(theFreeboardModel)
 
 	// Public API
 	return {
-		createValueEditor : function(element)
+		createValueEditor : function(element, expectsType)
 		{
-			createValueEditor(element);
-		}
+			if(expectsType)
+			{
+				createValueEditor(element, expectsType);
+			}
+			else {
+				createValueEditor(element, EXPECTED_TYPE.ANY);
+			}
+		},
+		EXPECTED_TYPE : EXPECTED_TYPE
 	}
 }
 
-function WidgetModel(theFreeboardModel, widgetPlugins)
-{
-	function disposeWidgetInstance()
-	{
-		if(!_.isUndefined(self.widgetInstance))
-		{
-			if(_.isFunction(self.widgetInstance.onDispose))
-			{
+function WidgetModel(theFreeboardModel, widgetPlugins) {
+	function disposeWidgetInstance() {
+		if (!_.isUndefined(self.widgetInstance)) {
+			if (_.isFunction(self.widgetInstance.onDispose)) {
 				self.widgetInstance.onDispose();
 			}
 
@@ -2017,44 +2199,63 @@ function WidgetModel(theFreeboardModel, widgetPlugins)
 	this.fillSize = ko.observable(false);
 
 	this.type = ko.observable();
-	this.type.subscribe(function(newValue)
-	{
+	this.type.subscribe(function (newValue) {
 		disposeWidgetInstance();
 
-		if((newValue in widgetPlugins) && _.isFunction(widgetPlugins[newValue].newInstance))
-		{
+		if ((newValue in widgetPlugins) && _.isFunction(widgetPlugins[newValue].newInstance)) {
 			var widgetType = widgetPlugins[newValue];
 
-			function finishLoad()
-			{
-				widgetType.newInstance(self.settings(), function(widgetInstance)
-				{
+			function finishLoad() {
+				widgetType.newInstance(self.settings(), function (widgetInstance) {
 
 					self.fillSize((widgetType.fill_size === true));
 					self.widgetInstance = widgetInstance;
 					self.shouldRender(true);
 					self._heightUpdate.valueHasMutated();
 
+					// Inject send method into widget
+					self.widgetInstance.sendValue = self.sendValue.bind(self)
 				});
 			}
 
 			// Do we need to load any external scripts?
-			if(widgetType.external_scripts)
-			{
+			if (widgetType.external_scripts) {
 				head.js(widgetType.external_scripts.slice(0), finishLoad); // Need to clone the array because head.js adds some weird functions to it
 			}
-			else
-			{
+			else {
 				finishLoad();
 			}
 		}
 	});
 
+
+	// Allow for widgets to send data back to sources
+	this.sendValue = function(sourceid, value) {
+		if (sourceid) {
+			console.log('try send', sourceid, value);
+			var matches = sourceid.match(/datasources\[["']([\w\-\_\$]+)["']\]/);
+			if (matches) {
+				_.each(theFreeboardModel.datasources(), function(d) {
+					if (d.name() == matches[1]) {
+						if (d.datasourceInstance.send && _.isFunction(d.datasourceInstance.send)) {
+							matches = sourceid.match(/datasources\[\"[\w\-\_\$]+\"\]((\[\"[\w\-\_\$]+\"\]){1,})/);
+							if (matches) {
+								// matches[1] is the topic to be sent
+								d.datasourceInstance.send(matches[1], value);
+							} else {
+								console.log('Not a valid topic to send!');
+							}
+						}
+					}
+				})
+			}
+		}
+	},
+
+
 	this.settings = ko.observable({});
-	this.settings.subscribe(function(newValue)
-	{
-		if(!_.isUndefined(self.widgetInstance) && _.isFunction(self.widgetInstance.onSettingsChanged))
-		{
+	this.settings.subscribe(function (newValue) {
+		if (!_.isUndefined(self.widgetInstance) && _.isFunction(self.widgetInstance.onSettingsChanged)) {
 			self.widgetInstance.onSettingsChanged(newValue);
 		}
 
@@ -2062,74 +2263,58 @@ function WidgetModel(theFreeboardModel, widgetPlugins)
 		self._heightUpdate.valueHasMutated();
 	});
 
-	this.processDatasourceUpdate = function(datasourceName)
-	{
+	this.processDatasourceUpdate = function (datasourceName) {
 		var refreshSettingNames = self.datasourceRefreshNotifications[datasourceName];
 
-		if(_.isArray(refreshSettingNames))
-		{
-			_.each(refreshSettingNames, function(settingName)
-			{
+		if (_.isArray(refreshSettingNames)) {
+			_.each(refreshSettingNames, function (settingName) {
 				self.processCalculatedSetting(settingName);
 			});
 		}
 	}
 
-	this.callValueFunction = function(theFunction)
-	{
+	this.callValueFunction = function (theFunction) {
 		return theFunction.call(undefined, theFreeboardModel.datasourceData);
 	}
 
-	this.processSizeChange = function()
-	{
-		if(!_.isUndefined(self.widgetInstance) && _.isFunction(self.widgetInstance.onSizeChanged))
-		{
+	this.processSizeChange = function () {
+		if (!_.isUndefined(self.widgetInstance) && _.isFunction(self.widgetInstance.onSizeChanged)) {
 			self.widgetInstance.onSizeChanged();
 		}
 	}
 
-	this.processCalculatedSetting = function(settingName)
-	{
-		if(_.isFunction(self.calculatedSettingScripts[settingName]))
-		{
+	this.processCalculatedSetting = function (settingName) {
+		if (_.isFunction(self.calculatedSettingScripts[settingName])) {
 			var returnValue = undefined;
 
-			try
-			{
+			try {
 				returnValue = self.callValueFunction(self.calculatedSettingScripts[settingName]);
 			}
-			catch(e)
-			{
+			catch (e) {
 				var rawValue = self.settings()[settingName];
 
 				// If there is a reference error and the value just contains letters and numbers, then
-				if(e instanceof ReferenceError && (/^\w+$/).test(rawValue))
-				{
+				if (e instanceof ReferenceError && (/^\w+$/).test(rawValue)) {
 					returnValue = rawValue;
 				}
 			}
 
-			if(!_.isUndefined(self.widgetInstance) && _.isFunction(self.widgetInstance.onCalculatedValueChanged) && !_.isUndefined(returnValue))
-			{
-				try
-				{
+			if (!_.isUndefined(self.widgetInstance) && _.isFunction(self.widgetInstance.onCalculatedValueChanged) && !_.isUndefined(returnValue)) {
+				try {
 					self.widgetInstance.onCalculatedValueChanged(settingName, returnValue);
 				}
-				catch(e)
-				{
+				catch (e) {
 					console.log(e.toString());
 				}
 			}
 		}
 	}
 
-	this.updateCalculatedSettings = function()
-	{
+	this.updateCalculatedSettings = function () {
 		self.datasourceRefreshNotifications = {};
 		self.calculatedSettingScripts = {};
 
-		if(_.isUndefined(self.type()))
-		{
+		if (_.isUndefined(self.type())) {
 			return;
 		}
 
@@ -2138,28 +2323,27 @@ function WidgetModel(theFreeboardModel, widgetPlugins)
 		var datasourceRegex = new RegExp("datasources.([\\w_-]+)|datasources\\[['\"]([^'\"]+)", "g");
 		var currentSettings = self.settings();
 
-		_.each(settingsDefs, function(settingDef)
-		{
-			if(settingDef.type == "calculated")
-			{
+		_.each(settingsDefs, function (settingDef) {
+			if (settingDef.type == "calculated") {
 				var script = currentSettings[settingDef.name];
 
-				if(!_.isUndefined(script))
-				{
+				if (!_.isUndefined(script)) {
+
+					if(_.isArray(script)) {
+						script = "[" + script.join(",") + "]";
+					}
+
 					// If there is no return, add one
-					if((script.match(/;/g) || []).length <= 1 && script.indexOf("return") == -1)
-					{
+					if ((script.match(/;/g) || []).length <= 1 && script.indexOf("return") == -1) {
 						script = "return " + script;
 					}
 
 					var valueFunction;
 
-					try
-					{
+ 					try {
 						valueFunction = new Function("datasources", script);
 					}
-					catch(e)
-					{
+					catch (e) {
 						var literalText = currentSettings[settingDef.name].replace(/"/g, '\\"').replace(/[\r\n]/g, ' \\\n');
 
 						// If the value function cannot be created, then go ahead and treat it as literal text
@@ -2172,18 +2356,19 @@ function WidgetModel(theFreeboardModel, widgetPlugins)
 					// Are there any datasources we need to be subscribed to?
 					var matches;
 
-					while(matches = datasourceRegex.exec(script))
-					{
-                    var dsName = (matches[1] || matches[2]);
+					while (matches = datasourceRegex.exec(script)) {
+						var dsName = (matches[1] || matches[2]);
 						var refreshSettingNames = self.datasourceRefreshNotifications[dsName];
 
-						if(_.isUndefined(refreshSettingNames))
-						{
+						if (_.isUndefined(refreshSettingNames)) {
 							refreshSettingNames = [];
 							self.datasourceRefreshNotifications[dsName] = refreshSettingNames;
 						}
 
-						refreshSettingNames.push(settingDef.name);
+						if(_.indexOf(refreshSettingNames, settingDef.name) == -1) // Only subscribe to this notification once.
+						{
+							refreshSettingNames.push(settingDef.name);
+						}
 					}
 				}
 			}
@@ -2192,12 +2377,10 @@ function WidgetModel(theFreeboardModel, widgetPlugins)
 
 	this._heightUpdate = ko.observable();
 	this.height = ko.computed({
-		read: function()
-		{
+		read: function () {
 			self._heightUpdate();
 
-			if(!_.isUndefined(self.widgetInstance) && _.isFunction(self.widgetInstance.getHeight))
-			{
+			if (!_.isUndefined(self.widgetInstance) && _.isFunction(self.widgetInstance.getHeight)) {
 				return self.widgetInstance.getHeight();
 			}
 
@@ -2206,32 +2389,27 @@ function WidgetModel(theFreeboardModel, widgetPlugins)
 	});
 
 	this.shouldRender = ko.observable(false);
-	this.render = function(element)
-	{
+	this.render = function (element) {
 		self.shouldRender(false);
-		if(!_.isUndefined(self.widgetInstance) && _.isFunction(self.widgetInstance.render))
-		{
+		if (!_.isUndefined(self.widgetInstance) && _.isFunction(self.widgetInstance.render)) {
 			self.widgetInstance.render(element);
 			self.updateCalculatedSettings();
 		}
 	}
 
-	this.dispose = function()
-	{
+	this.dispose = function () {
 
 	}
 
-	this.serialize = function()
-	{
+	this.serialize = function () {
 		return {
-			title   : self.title(),
-			type    : self.type(),
+			title: self.title(),
+			type: self.type(),
 			settings: self.settings()
 		};
 	}
 
-	this.deserialize = function(object)
-	{
+	this.deserialize = function (object) {
 		self.title(object.title);
 		self.settings(object.settings);
 		self.type(object.type);
@@ -2556,7 +2734,7 @@ var freeboard = (function()
 									{
 										name : "col_width",
 										display_name : "Columns",
-										type : "number",
+										type : "integer",
 										default_value : 1,
 										required : true
 									}
@@ -2790,34 +2968,23 @@ var freeboard = (function()
 		},
 		addStyle            : function(selector, rules)
 		{
-			var context = document, stylesheet;
+			var styleString = selector + "{" + rules + "}";
 
-			if(typeof context.styleSheets == 'object')
+			var styleElement = $("style#fb-styles");
+
+			if(styleElement.length == 0)
 			{
-				if(context.styleSheets.length)
-				{
-					stylesheet = context.styleSheets[context.styleSheets.length - 1];
-				}
-				if(context.styleSheets.length)
-				{
-					if(context.createStyleSheet)
-					{
-						stylesheet = context.createStyleSheet();
-					}
-					else
-					{
-						context.getElementsByTagName('head')[0].appendChild(context.createElement('style'));
-						stylesheet = context.styleSheets[context.styleSheets.length - 1];
-					}
-				}
-				if(stylesheet.addRule)
-				{
-					stylesheet.addRule(selector, rules);
-				}
-				else
-				{
-					stylesheet.insertRule(selector + '{' + rules + '}', stylesheet.cssRules.length);
-				}
+				styleElement = $('<style id="fb-styles" type="text/css"></style>');
+				$("head").append(styleElement);
+			}
+
+			if(styleElement[0].styleSheet)
+			{
+				styleElement[0].styleSheet.cssText += styleString;
+			}
+			else
+			{
+				styleElement.text(styleElement.text() + styleString);
 			}
 		},
 		showLoadingIndicator: function(show)
