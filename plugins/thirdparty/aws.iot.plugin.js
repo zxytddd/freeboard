@@ -194,7 +194,7 @@
 
         function onConnect() {
             console.log("Connected");
-            getThingState(currentSettings);
+            getThingsState(currentSettings);
             subscribe_topics(currentSettings);
             aws_data["connected"] = true;
             updateCallback(aws_data);
@@ -203,7 +203,7 @@
         function onConnectionLost() {
             console.log("Connection Lost");
             aws_data["connected"] = false;
-            ThingReady(currentSettings, false);
+            ThingsReady(currentSettings, false);
             updateCallback(aws_data);
         };
 
@@ -214,7 +214,7 @@
             }
         }
 
-        function ThingReady(Settings, flag) {
+        function ThingsReady(Settings, flag) {
             for (var i = Settings.things.length - 1; i >= 0; i--) {
                 thing = Settings.things[i].thing;
                 if (aws_data[thing] === undefined) {
@@ -224,7 +224,7 @@
             }
         }
 
-        function getThingState(Settings) {
+        function getThingsState(Settings) {
             if (client && client.connected) {
                 var thing, thingstate_topicpub, thingstate_topic;
                 for (var i = Settings.things.length - 1; i >= 0; i--) {
@@ -239,7 +239,7 @@
                     client.publish(thingstate_topicpub, "{}");
                 }
             }
-            ThingReady(Settings, false);
+            ThingsReady(Settings, false);
             updateCallback(aws_data);
         }
 
@@ -297,7 +297,7 @@
             if (client && client.connected) {
                 console.log("Always in connected state!");
                 // Connected Case
-                getThingState(currentSettings);
+                getThingsState(currentSettings);
             } else {
                 connection_changed(currentSettings);
             }
