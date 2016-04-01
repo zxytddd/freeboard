@@ -9,10 +9,14 @@
         "display_name": "AWS IoT",
         "description": "Receive data from an MQTT server.",
         "external_scripts": [
-            "bower_components/cryptojslib/rollups/sha256.js",
-            "bower_components/cryptojslib/rollups/hmac-sha256.js",
-            "bower_components/moment/min/moment.min.js",
-            "bower_components/paho-mqtt-js/mqttws31.js"
+            // For development uncomment below
+            // "bower_components/cryptojslib/rollups/sha256.js",
+            // "bower_components/cryptojslib/rollups/hmac-sha256.js",
+            // "bower_components/random/lib/random.min.js",
+            // "bower_components/moment/min/moment.min.js",
+            // "bower_components/paho-mqtt-js/mqttws31.js"
+            // For publish uncomment below
+            "js/bower_components.min.js"
         ],
         "settings": [{
             "name": "endpoint",
@@ -216,6 +220,7 @@
                     client.subscribe(thingstate_topic);
                     console.log("Start get state of " + thingstate_topicpub);
                     client.publish(thingstate_topicpub, "{}");
+                    client.publish(thingstate_topicpub, "{}");
                 }
             }
         }
@@ -315,8 +320,9 @@
 
         function Create_AWSClient(settings) {
             var clientId = settings.clientId;
-            if (clientId === undefined) {
-                clientId = 'awsiot_jscli'+Math.ceil((Math.random()*1000));
+            if ((clientId === undefined) || (clientId.trim() === "")) {
+                var random = new Random();
+                clientId = 'iotjs_'+random.string(6);
                 settings.clientId = clientId;
             }
             var options = {
@@ -339,6 +345,7 @@
             client.on('publishFailed', function(e){
               console.log('publishFailed');
             });
+            console.log("Client " + clientId + " is created!");
             return client;
         }
     };
