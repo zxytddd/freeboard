@@ -120,18 +120,28 @@
             }
         }
 
-        function connection_changed(newSettings) {
+        function client_disconnect() {
+            console.log("Try to disconnect current client.");
             if (client && client.connected) {
                 client.on('connectionLost', function () {
                 });
                 client.disconnect();
             }
+        }
+
+        function client_connect(newSettings) {
+            client_disconnect();
+            console.log("Try to connect a new client.");
             currentSettings = newSettings;
             oldSettings = newSettings;
             client = Create_AWSClient(currentSettings);
             delta_topics = {};
             aws_data = {};
             client.connect();
+        }
+
+        function connection_changed(newSettings) {
+            client_connect(newSettings);
         }
 
         function topics_changed(newSettings) {
@@ -225,6 +235,8 @@
         }
 
         function getThingsState(Settings) {
+            ThingsReady(Settings, false);
+            updateCallback(aws_data);
             if (client && client.connected) {
                 var thing, thingstate_topicpub, thingstate_topic;
                 for (var i = Settings.things.length - 1; i >= 0; i--) {
@@ -235,12 +247,29 @@
                     client.subscribe(thingstate_topic);
                     console.log("Start get state of " + thingstate_topicpub);
                     client.publish(thingstate_topicpub, "{}");
-                    client.publish(thingstate_topicpub, "{}");
-                    client.publish(thingstate_topicpub, "{}");
                 }
             }
-            ThingsReady(Settings, false);
+        }
+
+        function OneThingReady(thing, flag) {
+            if (aws_data[thing] === undefined) {
+                aws_data[thing] = {ready:false};
+            }
+            aws_data[thing].ready = flag;
+        }
+
+        function getOneThingState(thing) {
+            OneThingReady(thing, false);
             updateCallback(aws_data);
+            if (client && client.connected) {
+                var thingstate_topicpub, thingstate_topic;
+                thingstate_topicpub = aws_get_thing_template.replace("&", thing);
+                thingstate_topic = thingstate_topicpub+"/accepted";
+                console.log("Start subscribe " + thingstate_topic);
+                client.subscribe(thingstate_topic);
+                console.log("Start get state of " + thingstate_topicpub);
+                client.publish(thingstate_topicpub, "{}");
+            }
         }
 
         function onMessageArrived(message) {
@@ -317,15 +346,27 @@
         // datasource: eg. ["xx"] or ["xx"]["xx"]
         // datasource : <thing>:<reported/desired>/<attribute>
         self.send = function(datasource, value) {
-            if (client.connected) {
-                var re = /\[\"([\w\_\-\$]+)\"\]/g;
-                var msg2send={state:{}};
-                var thing = re.exec(datasource)[1];
+            var re = /\[\"([\w\_\-\$]+)\"\]/g;
+            var msg2send={state:{}};
+            var thing = re.exec(datasource)[1];
+            if (thing === "connected") { // Connect or disconnect
+                if (value) {
+                    client_connect(currentSettings);
+                } else {
+                    client_disconnect();
+                }
+            } else {
+                if (client.connected === false) {
+                    console.log("Not connected, unable to send any messages!");
+                    return;
+                }
                 var match;
                 var msg = "";
                 var match_cnt = 0;
+                var last_match;
                 while ((match = re.exec(datasource))) {
-                    msg += '{' + '"' + match[1] + '":';
+                    last_match = match[1];
+                    msg += '{' + '"' + last_match + '":';
                     match_cnt += 1
                 }
                 if (match_cnt > 1) {
@@ -339,7 +380,12 @@
                     msg = JSON.stringify(msg2send);
                     publish_msg(topic, msg);
                 } else {
-                    console.log("Not a valid topic to publish!");
+                    if ((match_cnt === 1) && (last_match === "ready")) {
+                        // Update thing status
+                        getOneThingState(thing);
+                    } else {
+                        console.log("Not a valid topic to publish!");
+                    }
                 }
             }
         }
