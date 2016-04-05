@@ -395,7 +395,7 @@
             if ((clientId === undefined) || (clientId.trim() === "")) {
                 var random = new Random();
                 clientId = 'iotjs_'+random.string(6);
-                settings.clientId = clientId;
+                ///settings.clientId = clientId;
             }
             var options = {
               clientId : clientId,
