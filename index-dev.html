@@ -8,6 +8,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black" />
     <meta name="viewport" content = "width = device-width, initial-scale = 1, user-scalable = no" />
+    <link rel="shortcut icon" href="favicon.ico" type="image/x-icon" />
     <link href="lib/css/thirdparty/jquery.gridster.min.css" rel="stylesheet" />
 	<link href="lib/css/thirdparty/codemirror.css" rel="stylesheet" />
 	<link href="lib/css/thirdparty/codemirror-ambiance.css" rel="stylesheet" />
@@ -40,6 +41,12 @@
                 "examples/plugin_example.js",
 
                 // *** Load more plugins here ***
+                // Datasources Plugins
+                "plugins/thirdparty/ibm.iotfoundation.plugin.js",
+                "plugins/thirdparty/paho.mqtt.plugin.js",
+                "plugins/thirdparty/aws.iot.plugin.js",
+                // Widgets Plugins
+                "plugins/thirdparty/interactive_indicator.js",
                 function(){
                     $(function()
                     { //DOM Ready
