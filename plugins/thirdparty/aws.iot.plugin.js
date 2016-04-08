@@ -91,7 +91,7 @@
 
         var client = null;
 
-        function cmp_topics(x, y) {
+        function cmp_things(x, y) {
             if (x === y) {
                 return true;
             }
@@ -194,7 +194,7 @@
                     connection_changedCB(newSettings)
                 }
             } else {
-                if (cmp_topics(newSettings.things, oldSettings.things) === false) {
+                if (cmp_things(newSettings.things, oldSettings.things) === false) {
                     if (things_changedCB) {
                         things_changedCB(newSettings);
                     }
