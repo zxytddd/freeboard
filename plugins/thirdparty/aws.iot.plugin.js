@@ -91,7 +91,7 @@
 
         var client = null;
 
-        function cmp_topics(x, y) {
+        function cmp_things(x, y) {
             if (x === y) {
                 return true;
             }
@@ -144,7 +144,7 @@
             client_connect(newSettings);
         }
 
-        function topics_changed(newSettings) {
+        function things_changed(newSettings) {
             if (client) {
                 if (client.connected) {
                     unsubsribe_topics(currentSettings);
@@ -183,7 +183,7 @@
             }
         }
 
-        function checkSettingsUpdated(newSettings, topics_changedCB, connection_changedCB) {
+        function checkSettingsUpdated(newSettings, things_changedCB, connection_changedCB) {
             // Check whether connection changed
             if ( (newSettings.endpoint.toLowerCase() != oldSettings.endpoint.toLowerCase()) ||
                     (newSettings.clientId != oldSettings.clientId) ||
@@ -194,9 +194,9 @@
                     connection_changedCB(newSettings)
                 }
             } else {
-                if (cmp_topics(newSettings.topics, oldSettings.topics) === false) {
-                    if (topics_changedCB) {
-                        topics_changedCB(newSettings);
+                if (cmp_things(newSettings.things, oldSettings.things) === false) {
+                    if (things_changedCB) {
+                        things_changedCB(newSettings);
                     }
                 }
             }
@@ -318,7 +318,7 @@
 
         // **onSettingsChanged(newSettings)** (required) : A public function we must implement that will be called when a user makes a change to the settings.
         self.onSettingsChanged = function(newSettings) {
-            checkSettingsUpdated(newSettings, topics_changed, connection_changed);
+            checkSettingsUpdated(newSettings, things_changed, connection_changed);
         }
 
         // **updateNow()** (required) : A public function we must implement that will be called when the user wants to manually refresh the datasource
