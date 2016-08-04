@@ -10,28 +10,24 @@
     <link rel="shortcut icon" href="favicon.ico" type="image/x-icon" />
     <link href="css/freeboard.min.css" rel="stylesheet" />
     <script src="js/freeboard.thirdparty.min.js"></script>
+    <script src="config/LAN.js"></script>
+    <script src="config/WAN.js"></script>
     <script type="text/javascript">
         head.js("js/freeboard_plugins.min.js",
                 // *** Load more plugins here ***
                 // Datasources Plugins
-                "plugins/thirdparty/ibm.iotfoundation.plugin.js",
-                "plugins/thirdparty/paho.mqtt.plugin.js",
                 "plugins/thirdparty/aws.iot.plugin.js",
+                "plugins/thirdparty/websocket.plugin.js",
                 // Widgets Plugins
                 "plugins/thirdparty/interactive_indicator.js",
                 function(){
                     $(function()
                     { //DOM Ready
                         freeboard.initialize(true);
+                        //read config in LAN;
+                        freeboard.loadDashboard(LANConfig)
+                        freeboard.setEditing(false);                   
 
-                        var hashpattern = window.location.hash.match(/(&|#)source=([^&]+)/);
-                        if (hashpattern !== null) {
-                            $.getJSON(hashpattern[2], function(data) {
-                                freeboard.loadDashboard(data, function() {
-                                    freeboard.setEditing(false);
-                                });
-                            });
-                        }
 
                     });
                 });
