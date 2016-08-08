@@ -195,27 +195,32 @@
 		function onMessageArrived(e){
 			var key, endpoint, Oid, i ,Rid;
 			msg = e.data;
-			homeStateNew = JSON.parse(msg);
+			homeStateNew = JSON.parse(msg).state;
 			for(key in homeStateNew){
 				if(homeState.state[key] == undefined)
 					homeState.state[key] = {};
 				for(endpoint in homeStateNew[key]){
-					if(homeState.state[key][endpoint] == undefined)
-						homeState.state[key][endpoint] = {};					
-					for(Oid in homeStateNew[key][endpoint]){
-						if(homeState.state[key][endpoint][Oid] == undefined)
-							homeState.state[key][endpoint][Oid] = {};
-						for(i in homeStateNew[key][endpoint][Oid]){
-							if(homeState.state[key][endpoint][Oid][i] == undefined)
-								homeState.state[key][endpoint][Oid][i] = {};	
-							for(Rid in homeStateNew[key][endpoint][Oid][i]){
-								homeState.state[key][endpoint][Oid][i][Rid] = homeStateNew[key][endpoint][Oid][i][Rid];
+					if(homeStateNew[key][endpoint] == null){
+						homeState.state[key][endpoint] = undefined;
+					}else{
+						if(homeState.state[key][endpoint] == undefined)
+							homeState.state[key][endpoint] = {};					
+						for(Oid in homeStateNew[key][endpoint]){
+							if(homeState.state[key][endpoint][Oid] == undefined)
+								homeState.state[key][endpoint][Oid] = {};
+							for(i in homeStateNew[key][endpoint][Oid]){
+								if(homeState.state[key][endpoint][Oid][i] == undefined)
+									homeState.state[key][endpoint][Oid][i] = {};	
+								for(Rid in homeStateNew[key][endpoint][Oid][i]){
+									homeState.state[key][endpoint][Oid][i][Rid] = homeStateNew[key][endpoint][Oid][i][Rid];
+								}
 							}
-						}
-					}
+						}	
+					}	
 				}
 			}
-			console.log(JSON.stringify(homeStateNew, null, 4));
+			// console.log(JSON.stringify(homeState, null, 4));
+			// console.log(JSON.stringify(homeStateNew, null, 4));
 			updateCallback(homeState);
 		}
         function getHomeState() {
