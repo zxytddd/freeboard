@@ -245,6 +245,8 @@
 										"on_text": "ON",
 										"off_text": "OFF"
 									}
+								}else{
+									continue;
 								}
 								row[col] += 2;
 								pane.row[cnt] = 7;

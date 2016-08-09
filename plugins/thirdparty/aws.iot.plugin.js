@@ -247,9 +247,10 @@
                     thingstate_topicpub = aws_get_thing_template.replace("&", thing);
                     thingstate_topic = thingstate_topicpub+"/accepted";
                     console.log("Start subscribe " + thingstate_topic);
-                    client.subscribe(thingstate_topic);
-                    console.log("Start get state of " + thingstate_topicpub);
-                    client.publish(thingstate_topicpub, "{}");
+                    client.subscribe(thingstate_topic, function(){
+                        console.log("Start get state of " + thingstate_topicpub);
+                        client.publish(thingstate_topicpub, "{}");           
+                    });
                 }
             }
         }
@@ -300,13 +301,13 @@
                     aws_data[thing]["delta"][key] = msg.state[key];
                 }
             }
-            if ((operation === "update") && (operationStatus === "accepted")) {
+            if (((operation === "update") && (operationStatus === "accepted"))
+                || ((operation === "get") && (operationStatus === "accepted"))) {
                 for (endpoint in msg.state.reported){
                     if(msg.state.reported[endpoint] == null){
                         //delete UI
                     }else if (aws_data[thing].reported[endpoint] == undefined && panesLoaded[endpoint] == undefined){
                         //add UI
-                        console.log("in add");
                         var pane = {};
                         var widgets = [];
                         var widget = {};
@@ -348,6 +349,8 @@
                                         "on_text": "ON",
                                         "off_text": "OFF"
                                     }
+                                }else{
+                                    continue;
                                 }
                                 row[col] += 2;
                                 pane.row[cnt] = 7;
@@ -369,15 +372,6 @@
                         aws_data[thing][key] = {};
                     for (endpoint in msg.state[key]) {
                         aws_data[thing][key][endpoint] = msg.state[key][endpoint];
-                    }
-                }
-            }
-            if ((operation === "get") && (operationStatus === "accepted")) {
-                aws_data[thing].ready = true;
-                aws_data[thing]["delta"] = {};
-                for (key in msg.state) {
-                    for (item in msg.state[key]) {
-                        aws_data[thing][key][item] = msg.state[key][item];
                     }
                 }
             }
@@ -680,12 +674,14 @@
      * @method     MQTTClient#subscribe
      * @param      {string}  topic
      */
-    MQTTClient.prototype.subscribe = function(topic) {
+    MQTTClient.prototype.subscribe = function(topic, callback) {
         var self = this;
         try {
             this.client.subscribe(topic, {
                 onSuccess: function() {
                     self.emit('subscribeSucess');
+                    if(_.isFunction(callback))
+                        callback();
                 },
                 onFailure: function() {
                     self.emit('subscribeFailed');
