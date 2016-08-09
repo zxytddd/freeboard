@@ -56,9 +56,11 @@
 		// Always a good idea...
 		var self = this;
 		var client = null;
-        var currentSettings = settings;
-        var oldSettings = settings;
-		var homeState = {};
+		var currentSettings = settings;
+		var oldSettings = settings;
+		var homeState = {state: {reported:{}, desired:{}}, connected: false};
+		var panesLoaded = {};
+		var col = 2, row = [, 11, 5, 5];
 		function getData()
 		{
 			updateCallback(homeState);
@@ -78,19 +80,18 @@
 			}, interval);
 		}
 
-        function clientDisconnect() {
-            console.log("Try to disconnect current client.");
-            if (client && client.readyState == client.OPEN) {
-                client.close();
-            }
-        }
+		function clientDisconnect() {
+			console.log("Try to disconnect current client.");
+			if (client && client.readyState == client.OPEN) {
+				client.close();
+			}
+		}
 
-        function clientConnect() {
-            clientDisconnect();
-            console.log("Try to connect a new client.");
-            client = CreatWSClient(currentSettings);
-            homeState = {};
-        }
+		function clientConnect() {
+			clientDisconnect();
+			console.log("Try to connect a new client.");
+			client = CreatWSClient(currentSettings);
+		}
 
 		self.onSettingsChanged = function(newSettings)
 		{
@@ -122,14 +123,15 @@
 			var msg = "";
 			var match_cnt = 0;
 			var last_match;
+			console.log(datasource);
 			var thing = re.exec(datasource)[1];
-            if (thing === "connected") { // Connect or disconnect
-                if (value) {
-                    clientConnect();
-                } else {
-                    clientDisconnect();
-                }
-            } else if (thing === "state"){
+			if (thing === "connected") { // Connect or disconnect
+				if (value) {
+					clientConnect();
+				} else {
+					clientDisconnect();
+				}
+			} else if (thing === "state"){
 				while ((match = re.exec(datasource))) {
 					last_match = match[1];
 					msg += '{' + '"' + last_match + '":';
@@ -146,6 +148,7 @@
 				client.sendMessage(msg);
 
 			}
+			updateCallback(homeState);
 		}
 
 		function CreatWSClient(settings) {
@@ -154,7 +157,6 @@
 
 			client.onopen = function (e) {
 				homeState.connected = true;
-				homeState.state = {};
 				updateCallback(homeState);
 				getHomeState();
 				console.log("Web socket opened");
@@ -196,6 +198,70 @@
 			var key, endpoint, Oid, i ,Rid;
 			msg = e.data;
 			homeStateNew = JSON.parse(msg).state;
+			for(endpoint in homeStateNew.reported){
+				if(homeStateNew.reported[endpoint] == null){
+						//delete UI
+				}else{
+					if(homeState.state.reported[endpoint] == undefined && panesLoaded[endpoint] == undefined){
+						//add UI
+						var pane = {};
+						var widgets = [];
+						var widget = {};
+						var t = 1, cnt = 7;
+						pane.title = endpoint;
+						pane.width = 1;
+						pane.col_width = 1;
+						pane.row = {"3": row[col], "5": 7};
+						pane.col = {"3": col, "5": 1};
+						widget.type = "indicator";
+						widget.settings = {
+							"title": "connected",
+							"value": '!(datasources["'+["lan", "state", "reported", endpoint].join('"]["')+'"] == undefined)',
+							"on_text": "ONLINE",
+							"off_text": "OFFLINE"
+						}
+						row[col] += 1;
+						widgets.push(widget);
+						widget = {};
+						for(Oid in homeStateNew.reported[endpoint]){
+							for (i in homeStateNew.reported[endpoint][Oid]){
+								if(Oid == "3303"){
+									//temp
+									widget.type = "sparkline";
+									widget.settings = {
+										"title": "temperature"+i,
+										"value": ['datasources["'+["lan", "state", "reported", endpoint, Oid, i, "5700"].join('"]["')+'"]'],
+										"include_legend": true,
+										"legend": "C"
+									}
+								row[col] += 6;
+								}else if (Oid == "3311"){
+									//light
+									widget.type = "interactive_indicator",
+									widget.settings = {
+										"title": "light"+i,
+										"value": 'datasources["'+["lan", "state", "reported", endpoint, Oid, i, "5850"].join('"]["')+'"]',
+										"callback": 'datasources["'+["lan", "state", "desired", endpoint, Oid, i, "5850"].join('"]["')+'"]',
+										"on_text": "ON",
+										"off_text": "OFF"
+									}
+								}
+								row[col] += 2;
+								pane.row[cnt] = 7;
+								pane.col[cnt] = 1;
+								cnt = cnt + 2;
+								widgets.push(widget);
+								widget = {};
+							}
+						}
+						pane.widgets = widgets;
+						freeboard.addPane(pane);
+						col += 1;
+						col %= 3;
+                        panesLoaded[endpoint] = true;
+					}
+				}
+			}
 			for(key in homeStateNew){
 				if(homeState.state[key] == undefined)
 					homeState.state[key] = {};
@@ -204,7 +270,7 @@
 						homeState.state[key][endpoint] = undefined;
 					}else{
 						if(homeState.state[key][endpoint] == undefined)
-							homeState.state[key][endpoint] = {};					
+							homeState.state[key][endpoint] = {};							
 						for(Oid in homeStateNew[key][endpoint]){
 							if(homeState.state[key][endpoint][Oid] == undefined)
 								homeState.state[key][endpoint][Oid] = {};
@@ -223,14 +289,14 @@
 			// console.log(JSON.stringify(homeStateNew, null, 4));
 			updateCallback(homeState);
 		}
-        function getHomeState() {
-            // ThingsReady(Settings, false);
-            // updateCallback(aws_data);
-            if (client && client.readyState == client.OPEN) {
-            	var msg = "{}";
-            	client.sendMessage(msg);
-            }
-        }
+		function getHomeState() {
+			// ThingsReady(Settings, false);
+			// updateCallback(aws_data);
+			if (client && client.readyState == client.OPEN) {
+				var msg = "{}";
+				client.sendMessage(msg);
+			}
+		}
 		// createRefreshTimer(currentSettings.refresh_time);
 	}
 

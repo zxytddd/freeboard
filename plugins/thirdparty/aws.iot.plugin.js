@@ -91,6 +91,9 @@
 
         var client = null;
 
+        var panesLoaded = {};
+        var col = 2, row = [, 11, 5, 5];
+
         function cmp_things(x, y) {
             if (x === y) {
                 return true;
@@ -279,6 +282,7 @@
             var operation = topicTokens[4];
             var operationStatus = topicTokens[5];
             var msg = JSON.parse(message.payloadString);
+            var endpoint, Rid, i, Oid;
             if (aws_data[thing] === undefined) {
                 aws_data[thing] = {ready:false};
             } else {
@@ -297,9 +301,74 @@
                 }
             }
             if ((operation === "update") && (operationStatus === "accepted")) {
+                for (endpoint in msg.state.reported){
+                    if(msg.state.reported[endpoint] == null){
+                        //delete UI
+                    }else if (aws_data[thing].reported[endpoint] == undefined && panesLoaded[endpoint] == undefined){
+                        //add UI
+                        console.log("in add");
+                        var pane = {};
+                        var widgets = [];
+                        var widget = {};
+                        var t = 1, cnt = 7;
+                        pane.title = endpoint;
+                        pane.width = 1;
+                        pane.col_width = 1;
+                        pane.row = {"3": row[col], "5": 7};
+                        pane.col = {"3": col, "5": 1};
+                        widget.type = "indicator";
+                        widget.settings = {
+                            "title": "connected",
+                            "value": '!(datasources["'+["aws", thing, "reported", endpoint].join('"]["')+'"] == undefined)',
+                            "on_text": "ONLINE",
+                            "off_text": "OFFLINE"
+                        }
+                        row[col] += 1;
+                        widgets.push(widget);
+                        widget = {};
+                        for(Oid in msg.state.reported[endpoint]){
+                            for (i in msg.state.reported[endpoint][Oid]){
+                                if(Oid == "3303"){
+                                    //temp
+                                    widget.type = "sparkline";
+                                    widget.settings = {
+                                        "title": "temperature"+i,
+                                        "value": ['datasources["'+["aws", thing, "reported", endpoint, Oid, i, "5700"].join('"]["')+'"]'],
+                                        "include_legend": true,
+                                        "legend": "C"
+                                    }
+                                row[col] += 6;
+                                }else if (Oid == "3311"){
+                                    //light
+                                    widget.type = "interactive_indicator",
+                                    widget.settings = {
+                                        "title": "light"+i,
+                                        "value": 'datasources["'+["aws", thing, "reported", endpoint, Oid, i, "5850"].join('"]["')+'"]',
+                                        "callback": 'datasources["'+["aws", thing, "desired", endpoint, Oid, i, "5850"].join('"]["')+'"]',
+                                        "on_text": "ON",
+                                        "off_text": "OFF"
+                                    }
+                                }
+                                row[col] += 2;
+                                pane.row[cnt] = 7;
+                                pane.col[cnt] = 1;
+                                cnt = cnt + 2;
+                                widgets.push(widget);
+                                widget = {};
+                            }
+                        }
+                        pane.widgets = widgets;
+                        freeboard.addPane(pane);
+                        col += 1;
+                        col %= 3;
+                        panesLoaded[endpoint] = true;
+                    }
+                }
                 for (key in msg.state) {
-                    for (item in msg.state[key]) {
-                        aws_data[thing][key][item] = msg.state[key][item];
+                    if(msg.state[key] == null)
+                        aws_data[thing][key] = {};
+                    for (endpoint in msg.state[key]) {
+                        aws_data[thing][key][endpoint] = msg.state[key][endpoint];
                     }
                 }
             }
