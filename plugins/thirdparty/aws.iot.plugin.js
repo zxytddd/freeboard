@@ -451,6 +451,7 @@
                     }
                 }
             }
+            updateCallback(aws_data);
         }
 
         function Create_AWSClient(settings) {
