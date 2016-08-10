@@ -60,7 +60,7 @@
 		var oldSettings = settings;
 		var homeState = {state: {reported:{}, desired:{}}, connected: false};
 		var panesLoaded = {};
-		var col = 2, row = [, 11, 5, 5];
+		var col = 1, row = [9, 5, 5];
 		function getData()
 		{
 			updateCallback(homeState);
@@ -207,12 +207,11 @@
 						var pane = {};
 						var widgets = [];
 						var widget = {};
-						var t = 1, cnt = 7;
 						pane.title = endpoint;
 						pane.width = 1;
 						pane.col_width = 1;
-						pane.row = {"3": row[col], "5": 7};
-						pane.col = {"3": col, "5": 1};
+						pane.row = {"1": row[0]+row[1]+row[2]-10, "3": row[col]};
+						pane.col = {"1": 1, "3": col + 1};
 						widget.type = "indicator";
 						widget.settings = {
 							"title": "connected",
@@ -249,9 +248,6 @@
 									continue;
 								}
 								row[col] += 2;
-								pane.row[cnt] = 7;
-								pane.col[cnt] = 1;
-								cnt = cnt + 2;
 								widgets.push(widget);
 								widget = {};
 							}
