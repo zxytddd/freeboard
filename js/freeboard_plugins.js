@@ -420,7 +420,11 @@ function FreeboardModel(datasourcePlugins, widgetPlugins, freeboardUI)
 				return freeboardUI.getPositionForScreenSize(pane).row;
 			});
 
-			_.each(sortedPanes, self.showPane);
+			_.each(sortedPanes, function(paneConfig){
+				var pane = new PaneModel(self, widgetPlugins);
+				pane.deserialize(paneConfig);
+				self.panes.push(pane);
+			});
 
 			if(self.allow_edit() && self.panes().length == 0)
 			{
@@ -600,6 +604,7 @@ function FreeboardModel(datasourcePlugins, widgetPlugins, freeboardUI)
 		var pane = new PaneModel(self, widgetPlugins);
 		pane.deserialize(paneConfig);
 		self.panes.push(pane);
+		freeboardUI.processResize(true);
 	};
 	this.addPane = function(pane)
 	{
