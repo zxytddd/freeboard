@@ -60,7 +60,7 @@
 		var oldSettings = settings;
 		var homeState = {state: {reported:{}, desired:{}}, connected: false};
 		var panesLoaded = {};
-		var col = 1, row = [9, 5, 5];
+		var col = [1, 1], row = [[9, 5], [9, 5, 5]];
 		function getData()
 		{
 			updateCallback(homeState);
@@ -210,8 +210,8 @@
 						pane.title = endpoint;
 						pane.width = 1;
 						pane.col_width = 1;
-						pane.row = {"1": row[0]+row[1]+row[2]-10, "3": row[col]};
-						pane.col = {"1": 1, "3": col + 1};
+						pane.row = {"1": row[0][0] + row[0][1] - 5, "2": row[0][col[0]], "3": row[1][col[1]]};
+						pane.col = {"1": 1, "2": col[0] + 1, "3": col[1] + 1};
 						widget.type = "indicator";
 						widget.settings = {
 							"title": "connected",
@@ -219,7 +219,8 @@
 							"on_text": "ONLINE",
 							"off_text": "OFFLINE"
 						}
-						row[col] += 1;
+						row[0][col[0]] += 1;
+						row[1][col[1]] += 1;
 						widgets.push(widget);
 						widget = {};
 						for(Oid in homeStateNew.reported[endpoint]){
@@ -233,7 +234,8 @@
 										"include_legend": true,
 										"legend": "C"
 									}
-								row[col] += 6;
+								row[0][col[0]] += 6;
+								row[1][col[1]] += 6;
 								}else if (Oid == "3311"){
 									//light
 									widget.type = "interactive_indicator",
@@ -247,15 +249,18 @@
 								}else{
 									continue;
 								}
-								row[col] += 2;
+								row[0][col[0]] += 2;
+								row[1][col[1]] += 2;
 								widgets.push(widget);
 								widget = {};
 							}
 						}
 						pane.widgets = widgets;
 						freeboard.addPane(pane);
-						col += 1;
-						col %= 3;
+						col[0] += 1;
+						col[0] %= 2;
+						col[1] += 1;
+						col[1] %= 3;
                         panesLoaded[endpoint] = true;
 					}
 				}
