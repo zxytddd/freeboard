@@ -177,8 +177,10 @@
 			client.onerror = function (e) {
 				console.log('Error occured: ' + e.data,e);
 				//read config in WAN
-				freeboard.loadDashboard(WANConfig);
-				freeboard.setEditing(false);
+				setTimeout(function (){
+					freeboard.loadDashboard(WANConfig);
+					freeboard.setEditing(false);
+				},1000);
 			} ;
 			client.sendMessage = function(msg){
 				if(client && client.readyState == client.OPEN){

@@ -286,27 +286,24 @@
             var endpoint, Rid, i, Oid;
             if (aws_data[thing] === undefined) {
                 aws_data[thing] = {ready:false};
-            } else {
-                if (aws_data[thing]["desired"] === undefined) {
-                    aws_data[thing]["desired"] = {};
-                }
-                if (aws_data[thing]["reported"] === undefined) {
-                    aws_data[thing]["reported"] = {};
-                }
+            }
+            if (aws_data[thing]["desired"] === undefined) {
+                aws_data[thing]["desired"] = {};
+            }
+            if (aws_data[thing]["reported"] === undefined) {
+                aws_data[thing]["reported"] = {};
             }
             if ((operation === "update") && (operationStatus === "delta")) {
-                aws_data[thing]["delta"] = {}
-                for (key in msg.state) {
-                    aws_data[thing]["desired"][key] = msg.state[key];
-                    aws_data[thing]["delta"][key] = msg.state[key];
-                }
+
             }
             if (((operation === "update") && (operationStatus === "accepted"))
                 || ((operation === "get") && (operationStatus === "accepted"))) {
                 for (endpoint in msg.state.reported){
-                    if(msg.state.reported[endpoint] == null){
+                    if (msg.state.reported[endpoint] == null){
                         //delete UI
                     }else if (aws_data[thing].reported[endpoint] == undefined && panesLoaded[endpoint] == undefined){
+                        aws_data[thing].reported[endpoint] = msg.state.reported[endpoint];
+                        aws_data[thing].desired[endpoint] = msg.state.desired[endpoint];
                         //add UI
                         var pane = {};
                         var widgets = [];
@@ -372,7 +369,13 @@
                     if(msg.state[key] == null)
                         aws_data[thing][key] = {};
                     for (endpoint in msg.state[key]) {
-                        aws_data[thing][key][endpoint] = msg.state[key][endpoint];
+                        for(Oid in msg.state[key][endpoint]){
+                            for(i in msg.state[key][endpoint][Oid]){
+                                for(Rid in msg.state[key][endpoint][Oid][i]){
+                                    aws_data[thing][key][endpoint][Oid][i][Rid] = msg.state[key][endpoint][Oid][i][Rid];
+                                }
+                            }
+                        }
                     }
                 }
             }
