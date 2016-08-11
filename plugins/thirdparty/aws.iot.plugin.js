@@ -324,7 +324,7 @@
                         row[1][col[1]] += 1;
                         widgets.push(widget);
                         widget = {};
-                        for(Oid in msg.state.reported[endpoint]){
+                        for (Oid in msg.state.reported[endpoint]){
                             for (i in msg.state.reported[endpoint][Oid]){
                                 if(Oid == "3303"){
                                     //temp
@@ -369,9 +369,9 @@
                     if(msg.state[key] == null)
                         aws_data[thing][key] = {};
                     for (endpoint in msg.state[key]) {
-                        for(Oid in msg.state[key][endpoint]){
-                            for(i in msg.state[key][endpoint][Oid]){
-                                for(Rid in msg.state[key][endpoint][Oid][i]){
+                        for (Oid in msg.state[key][endpoint]){
+                            for (i in msg.state[key][endpoint][Oid]){
+                                for (Rid in msg.state[key][endpoint][Oid][i]){
                                     aws_data[thing][key][endpoint][Oid][i][Rid] = msg.state[key][endpoint][Oid][i][Rid];
                                 }
                             }

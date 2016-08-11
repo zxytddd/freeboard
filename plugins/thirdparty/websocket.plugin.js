@@ -69,7 +69,7 @@
 		var refreshTimer;
 		function createRefreshTimer(interval)
 		{
-			if(refreshTimer)
+			if (refreshTimer)
 			{
 				clearInterval(refreshTimer);
 			}
@@ -102,7 +102,7 @@
 
 		self.updateNow = function()
 		{
-			if(client && client.readyState == client.OPEN){
+			if (client && client.readyState == client.OPEN){
 				console.log("Always in connected state!");
 			} else {
 				clientConnect();
@@ -183,7 +183,7 @@
 				},1000);
 			} ;
 			client.sendMessage = function(msg){
-				if(client && client.readyState == client.OPEN){
+				if (client && client.readyState == client.OPEN){
 					client.send(msg);
 					console.log("SEND: : "+msg);
 				} else {
@@ -200,11 +200,11 @@
 			var key, endpoint, Oid, i ,Rid;
 			msg = e.data;
 			homeStateNew = JSON.parse(msg).state;
-			for(endpoint in homeStateNew.reported){
-				if(homeStateNew.reported[endpoint] == null){
+			for (endpoint in homeStateNew.reported){
+				if (homeStateNew.reported[endpoint] == null){
 						//delete UI
-				}else{
-					if(homeState.state.reported[endpoint] == undefined && panesLoaded[endpoint] == undefined){
+				} else {
+					if (homeState.state.reported[endpoint] == undefined && panesLoaded[endpoint] == undefined){
 						//add UI
 						var pane = {};
 						var widgets = [];
@@ -225,9 +225,9 @@
 						row[1][col[1]] += 1;
 						widgets.push(widget);
 						widget = {};
-						for(Oid in homeStateNew.reported[endpoint]){
+						for (Oid in homeStateNew.reported[endpoint]){
 							for (i in homeStateNew.reported[endpoint][Oid]){
-								if(Oid == "3303"){
+								if (Oid == "3303"){
 									//temp
 									widget.type = "sparkline";
 									widget.settings = {
@@ -238,7 +238,7 @@
 									}
 								row[0][col[0]] += 6;
 								row[1][col[1]] += 6;
-								}else if (Oid == "3311"){
+								} else if (Oid == "3311"){
 									//light
 									widget.type = "interactive_indicator",
 									widget.settings = {
@@ -248,7 +248,7 @@
 										"on_text": "ON",
 										"off_text": "OFF"
 									}
-								}else{
+								} else {
 									continue;
 								}
 								row[0][col[0]] += 2;
@@ -267,22 +267,22 @@
 					}
 				}
 			}
-			for(key in homeStateNew){
-				if(homeState.state[key] == undefined)
+			for (key in homeStateNew){
+				if (homeState.state[key] == undefined)
 					homeState.state[key] = {};
-				for(endpoint in homeStateNew[key]){
-					if(homeStateNew[key][endpoint] == null){
+				for (endpoint in homeStateNew[key]){
+					if (homeStateNew[key][endpoint] == null){
 						homeState.state[key][endpoint] = undefined;
-					}else{
-						if(homeState.state[key][endpoint] == undefined)
+					} else {
+						if (homeState.state[key][endpoint] == undefined)
 							homeState.state[key][endpoint] = {};							
-						for(Oid in homeStateNew[key][endpoint]){
-							if(homeState.state[key][endpoint][Oid] == undefined)
+						for (Oid in homeStateNew[key][endpoint]){
+							if (homeState.state[key][endpoint][Oid] == undefined)
 								homeState.state[key][endpoint][Oid] = {};
-							for(i in homeStateNew[key][endpoint][Oid]){
-								if(homeState.state[key][endpoint][Oid][i] == undefined)
+							for (i in homeStateNew[key][endpoint][Oid]){
+								if (homeState.state[key][endpoint][Oid][i] == undefined)
 									homeState.state[key][endpoint][Oid][i] = {};	
-								for(Rid in homeStateNew[key][endpoint][Oid][i]){
+								for (Rid in homeStateNew[key][endpoint][Oid][i]){
 									homeState.state[key][endpoint][Oid][i][Rid] = homeStateNew[key][endpoint][Oid][i][Rid];
 								}
 							}
