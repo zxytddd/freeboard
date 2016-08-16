@@ -284,8 +284,6 @@
 					if (msg.state.reported[endpoint] === null) {
 						//delete UI
 					} else if (aws_data[thing].reported[endpoint] === undefined && panesLoaded[endpoint] === undefined) {
-						aws_data[thing].reported[endpoint] = msg.state.reported[endpoint];
-						aws_data[thing].desired[endpoint] = msg.state.desired[endpoint];
 						//add UI
 						var pane = {};
 						var widgets = [];
@@ -356,12 +354,45 @@
 					}
 				}
 				for (key in msg.state) {
+					if (key === "delta"){
+						continue;
+					}
+					if (aws_data[thing][key] === undefined) {
+						aws_data[thing][key] = {};
+					}
+					for (endpoint in msg.state[key]) {
+						if (msg.state[key][endpoint] === null) {
+							aws_data[thing][key][endpoint] = undefined;
+						} else {
+							if (aws_data[thing][key][endpoint] === undefined) {
+								aws_data[thing][key][endpoint] = {};
+							}
+							for (Oid in msg.state[key][endpoint]) {
+								if (aws_data[thing][key][endpoint][Oid] === undefined) {
+									aws_data[thing][key][endpoint][Oid] = {};
+								}
+								for (i in msg.state[key][endpoint][Oid]) {
+									if (aws_data[thing][key][endpoint][Oid][i] === undefined) {
+										aws_data[thing][key][endpoint][Oid][i] = {};
+									}
+									for (Rid in msg.state[key][endpoint][Oid][i]) {
+										aws_data[thing][key][endpoint][Oid][i][Rid] = msg.state[key][endpoint][Oid][i][Rid];
+									}
+								}
+							}
+						}
+					}
+				}
+				for (key in msg.state) {
 					if (msg.state[key] === null) {
 						aws_data[thing][key] = {};
 					}
 					for (endpoint in msg.state[key]) {
 						if(key === "delta"){
 							continue;
+						}
+						if(msg.state[key][endpoint] === null){
+							aws_data[thing][key][endpoint] = undefined;
 						}
 						for (Oid in msg.state[key][endpoint]) {
 							for (i in msg.state[key][endpoint][Oid]) {
